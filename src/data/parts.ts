@@ -24,6 +24,7 @@ const structures: Record<string, Structure> = {
   pubis: { name: 'Pubis', region: 'pelvis', bone: 'coxal' },
   'sinfisis-pubica': { name: 'Sínfisis del pubis', region: 'pelvis', bone: 'coxal', aliases: ['sínfisis púbica'] },
   'cartilagos-costales': { name: 'Cartílagos costales', region: 'tronco', aliases: ['cartílago costal'] },
+  'articulacion-sacroiliaca': { name: 'Articulación sacroilíaca' },
   discos: { name: 'Discos intervertebrales' },
   'disco-acromioclavicular': { name: 'Disco acromioclavicular' },
   dientes: { name: 'Dientes' },

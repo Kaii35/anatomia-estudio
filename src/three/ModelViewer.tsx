@@ -52,7 +52,7 @@ const IVORY = new Color('#e9dcc3')
 
 /**
  * Color en el modo «Colores» de las partes cuyos modelos vienen en un solo tono
- * (cintura escapular y escápula). El resto de modelos traen el color en su material.
+ * (cintura escapular, escápula y pelvis). El resto de modelos traen el color en su material.
  */
 const PALETTE: Record<string, Color> = Object.fromEntries(
   Object.entries({
@@ -64,6 +64,11 @@ const PALETTE: Record<string, Color> = Object.fromEntries(
     'escapula-espina': '#9fbcd6',
     'escapula-supraespinosa': '#6cc7ba',
     'escapula-infraespinosa': '#e2ce9c',
+    ilion: '#e8b44c',
+    isquion: '#8dd386',
+    pubis: '#9fbfe8',
+    sacro: '#40c5c0',
+    coccix: '#c59ad7',
   }).map(([part, hex]) => [part, new Color(hex)]),
 )
 const tintOf = (mesh: Mesh, i: number): Color => PALETTE[mesh.userData.partId] ?? mesh.userData.base[i]

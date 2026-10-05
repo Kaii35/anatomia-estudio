@@ -104,7 +104,14 @@ export const models: Record<string, ModelDef> = {
     ...range('fmm', 2, 5),
     ...range('fdm', 1, 5),
   ]),
-  pelvis: glb('pelvis', 'Pelvis', ['ilion', 'isquion', 'pubis', 'sacro', 'coccix', 'sinfisis-pubica']),
+  pelvis: glb('pelvis', 'Pelvis', ['ilion', 'isquion', 'pubis', 'sacro', 'coccix', 'sinfisis-pubica'], {
+    views: [
+      { id: 'anterior', label: 'Anterior', dir: [0, 0, 1] },
+      { id: 'posterior', label: 'Posterior', dir: [0, 0, -1] },
+      { id: 'lateral', label: 'Lateral', dir: [1, 0, 0] },
+      { id: 'superior', label: 'Superior', dir: [0, 0.96, 0.28] },
+    ],
+  }),
   pierna: glb('pierna', 'Miembro inferior', ['femur', 'rotula', 'tibia', 'perone']),
   pie: glb('pie', 'Pie', [
     ...['astragalo', 'calcaneo', 'navicular', 'cuboides', 'cuneiforme-medial', 'cuneiforme-intermedio', 'cuneiforme-lateral'],

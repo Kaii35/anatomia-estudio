@@ -39,6 +39,7 @@ function byConvention(name: string): string | null | undefined {
   if ((m = name.match(/^scapula_[LR]_([a-z]+)/))) return `escapula-${SCAPULA[m[1]]}`
   if ((m = name.match(/^(ilium|ischium|pubis)_[LR]/))) return PELVIS[m[1]]
   if (name === 'pubic_symphysis') return 'sinfisis-pubica'
+  if (name.startsWith('sacroiliac_joint')) return 'articulacion-sacroiliaca'
   if ((m = name.match(/^rib_[LR]_(\d+)/))) return +m[1] <= 7 ? 'costillas-verdaderas' : +m[1] <= 10 ? 'costillas-falsas' : 'costillas-flotantes'
   if (name.startsWith('cartilage_')) return 'cartilagos-costales'
   if (name.startsWith('disc_')) return 'discos'
@@ -48,10 +49,12 @@ function byConvention(name: string): string | null | undefined {
   return undefined
 }
 
-/** Lo que distingue a una malla dentro de su parte: «C3», «5.ª costilla, lado izquierdo», «lado derecho». */
+/** Lo que distingue a una malla dentro de su parte: «C3», «vértebra S2», «5.ª costilla, lado izquierdo», «lado derecho». */
 export function meshDetail(name: string): string | null {
   let m: RegExpMatchArray | null
   if ((m = name.match(/^([CTL])(\d\d)$/))) return `${m[1]}${+m[2]}`
+  if ((m = name.match(/^sacrum_(S\d)$/))) return `vértebra ${m[1]}`
+  if ((m = name.match(/^coccyx_(\d)$/))) return `segmento ${m[1]}`
   const side = (m = name.match(/_([LR])(_|$)/)) ? (m[1] === 'L' ? 'lado izquierdo' : 'lado derecho') : null
   if ((m = name.match(/^(rib|cartilage)_[LR]_(\d+)/))) return `${+m[2]}.ª costilla, ${side}`
   return side
