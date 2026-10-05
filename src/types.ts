@@ -6,6 +6,7 @@ export type RegionId =
   | 'pelvis'
   | 'miembro-inferior'
   | 'pie'
+  | 'tronco'
 
 export interface Region {
   id: RegionId
@@ -96,4 +97,18 @@ export interface IdentifyQ extends QBase {
   all?: boolean
 }
 
-export type Question = ChoiceQ | MultiQ | WriteQ | ListQ | IdentifyQ
+/** Lámina rotulada: de cada parte sale una línea hacia un recuadro donde se escribe su nombre. */
+export interface LabelQ extends QBase {
+  type: 'label'
+  model: string
+  /** Partes que hay que nombrar. */
+  parts: string[]
+  /** Vista inicial del modelo (id de una de sus `views`). */
+  view?: string
+  /** Partes visibles del modelo; si se omite, se muestra entero. */
+  only?: string[]
+  /** Deja un solo lado de los huesos pares (una sola extremidad). */
+  half?: boolean
+}
+
+export type Question = ChoiceQ | MultiQ | WriteQ | ListQ | IdentifyQ | LabelQ

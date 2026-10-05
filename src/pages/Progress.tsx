@@ -49,7 +49,7 @@ export function Progress() {
             const failing = qs.filter((q) => stats[q.id] && !stats[q.id].lastOk).length
             return (
               <li key={r.id} className="grid items-center gap-x-4 gap-y-1.5 sm:grid-cols-[11rem_1fr_auto]">
-                <Link to={`/region/${r.id}`} className="font-medium hover:underline">
+                <Link to={`/region/${r.id}`} className="py-1.5 font-medium hover:underline">
                   {r.name}
                 </Link>
                 <ProgressBar value={m} color={r.color} />

@@ -1,3 +1,5 @@
 node_modules
 dist
 *.local
+# Modelos sin optimizar (ver scripts/optimizar-modelos.mjs)
+modelos-originales

@@ -22,7 +22,7 @@ export function Inspector() {
   useEffect(() => () => void (file && URL.revokeObjectURL(file.url)), [file])
 
   const def = useMemo<ModelDef | null>(
-    () => (file ? { id: `inspector:${file.url}`, title: file.name, source: { kind: 'glb', url: file.url }, parts: [] } : null),
+    () => (file ? { id: `inspector:${file.url}`, title: file.name, url: file.url, parts: [] } : null),
     [file],
   )
 
@@ -44,14 +44,13 @@ export function Inspector() {
   const unmatched = rows.filter((r) => !r.partId)
   const snippet = useMemo(() => {
     const parts = [...new Set(rows.map((r) => r.partId).filter(Boolean))]
-    const map = Object.fromEntries(unmatched.map((r) => [r.mesh, '']))
-    return `{
+    const pending = [...new Set(unmatched.map((r) => r.mesh))]
+    return `'mi-modelo': {
   id: 'mi-modelo',
   title: '${file?.name.replace(/\.glb$/i, '') ?? ''}',
-  source: { kind: 'glb', url: 'models/${file?.name ?? ''}' },
-  parts: ${JSON.stringify(parts)},
-  meshMap: ${JSON.stringify(map, null, 2).replace(/\n/g, '\n  ')},
-}`
+  url: 'models/${file?.name ?? ''}',
+  parts: ${JSON.stringify(parts)},${pending.length ? `\n  // Mallas sin asignar: ${pending.join(', ')}\n  resolve: (name) => undefined,` : ''}
+},`
   }, [rows, unmatched, file])
 
   const copy = async () => {
@@ -135,7 +134,7 @@ export function Inspector() {
                   {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Copiado' : 'Copiar'}
                 </button>
               </div>
-              <p className="mt-1 text-sm text-muted">En meshMap, escribe el id del hueso junto a cada malla sin asignar.</p>
+              <p className="mt-1 text-sm text-muted">Deja en parts solo las partes sobre las que quieras preguntas. Las mallas sin asignar se resuelven en resolve.</p>
               <pre className="mt-3 max-h-64 overflow-auto rounded-xl bg-surface-2 p-3 text-xs leading-relaxed">{snippet}</pre>
             </div>
           </div>

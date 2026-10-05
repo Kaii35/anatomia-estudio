@@ -598,7 +598,7 @@ const pelvis: Bone[] = [
     kind: 'plano',
     paired: true,
     aliases: ['hueso coxal', 'ilíaco', 'hueso ilíaco', 'innominado', 'hueso de la cadera'],
-    mesh: ['hip bone', 'os coxae', 'coxal bone', 'innominate', 'pelvis'],
+    mesh: ['hip bone', 'os coxae', 'coxal bone', 'innominate'],
     summary:
       'Resulta de la fusión de tres huesos —ilion, isquion y pubis— que se unen en el acetábulo. Los dos coxales y el sacro forman la pelvis.',
     landmarks: [
@@ -855,6 +855,123 @@ const pie: Bone[] = [
   ),
 ]
 
-export const bones: Bone[] = [...craneo, ...cinturaEscapular, ...miembroSuperior, ...mano, ...pelvis, ...miembroInferior, ...pie]
+const tronco: Bone[] = [
+  {
+    id: 'cervicales',
+    name: 'Vértebras cervicales',
+    region: 'tronco',
+    group: 'Columna vertebral',
+    kind: 'irregular',
+    paired: false,
+    aliases: ['cervicales', 'columna cervical', 'vértebra cervical'],
+    summary:
+      'Siete vértebras (C1–C7) que forman el cuello. Son las más pequeñas y móviles, con cuerpo pequeño y apófisis espinosa corta y bífida.',
+    landmarks: [
+      q('Agujeros transversos', 'Exclusivos de las cervicales: por ellos asciende la arteria vertebral.'),
+      l('Atlas (C1)', 'Sin cuerpo ni apófisis espinosa; articula con los cóndilos occipitales.'),
+      l('Axis (C2)', 'Su diente (apófisis odontoides) es el eje de rotación de la cabeza.'),
+      l('Vértebra prominente (C7)', 'Apófisis espinosa larga y palpable.'),
+    ],
+    articulations: ['Occipital', 'Primera vértebra torácica'],
+    forensic:
+      'La fractura bilateral de los pedículos del axis («fractura del ahorcado») es típica de la hiperextensión brusca, como en el ahorcamiento con caída. Las lesiones cervicales altas orientan sobre el mecanismo de muerte.',
+  },
+  {
+    id: 'toracicas',
+    name: 'Vértebras torácicas',
+    region: 'tronco',
+    group: 'Columna vertebral',
+    kind: 'irregular',
+    paired: false,
+    aliases: ['torácicas', 'dorsales', 'vértebras dorsales', 'columna torácica', 'columna dorsal'],
+    summary:
+      'Doce vértebras (T1–T12) que articulan con las costillas. Su cuerpo tiene forma de corazón y su apófisis espinosa es larga e inclinada hacia abajo.',
+    landmarks: [q('Fositas costales', 'Carillas para la cabeza y el tubérculo de las costillas: solo las tienen las torácicas.'), l('Apófisis espinosa larga y oblicua')],
+    articulations: ['Costillas', 'C7', 'L1'],
+  },
+  {
+    id: 'lumbares',
+    name: 'Vértebras lumbares',
+    region: 'tronco',
+    group: 'Columna vertebral',
+    kind: 'irregular',
+    paired: false,
+    aliases: ['lumbares', 'columna lumbar', 'vértebra lumbar'],
+    summary:
+      'Cinco vértebras (L1–L5), las más grandes y robustas porque soportan más peso. Cuerpo voluminoso en forma de riñón y apófisis espinosa corta y cuadrilátera.',
+    landmarks: [q('Apófisis mamilares'), l('Apófisis costiformes (transversas)')],
+    articulations: ['T12', 'Sacro'],
+    forensic: 'Los osteofitos (picos óseos) en los bordes de los cuerpos vertebrales aumentan con la edad y ayudan a estimarla en adultos.',
+  },
+  {
+    id: 'esternon-manubrio',
+    name: 'Manubrio del esternón',
+    region: 'tronco',
+    group: 'Esternón',
+    kind: 'plano',
+    paired: false,
+    aliases: ['manubrio', 'manubrio esternal'],
+    summary: 'Porción superior y más ancha del esternón. Articula con las clavículas y con las dos primeras costillas.',
+    landmarks: [q('Escotadura yugular'), l('Escotaduras claviculares'), l('Ángulo esternal (de Louis)', 'Unión con el cuerpo, a la altura de la 2.ª costilla.')],
+    articulations: ['Clavículas', '1.ª y 2.ª costillas', 'Cuerpo del esternón'],
+  },
+  {
+    id: 'esternon-cuerpo',
+    name: 'Cuerpo del esternón',
+    region: 'tronco',
+    group: 'Esternón',
+    kind: 'plano',
+    paired: false,
+    aliases: ['cuerpo esternal', 'esternón'],
+    summary: 'Porción media y más larga del esternón. Sus bordes reciben los cartílagos costales de la 2.ª a la 7.ª costilla.',
+    articulations: ['Manubrio', 'Apófisis xifoides', 'Cartílagos costales 2.º–7.º'],
+    forensic: 'Se fractura por impacto frontal (volante) y con frecuencia durante las maniobras de reanimación cardiopulmonar.',
+  },
+  {
+    id: 'xifoides',
+    name: 'Apófisis xifoides',
+    region: 'tronco',
+    group: 'Esternón',
+    kind: 'plano',
+    paired: false,
+    aliases: ['xifoides', 'apéndice xifoides', 'proceso xifoides'],
+    summary: 'Extremo inferior del esternón, pequeño y de forma variable. Es cartilaginoso en jóvenes.',
+    forensic: 'Se osifica tarde y se fusiona con el cuerpo hacia los 40 años o después: orienta sobre la edad adulta.',
+  },
+  {
+    id: 'costillas-verdaderas',
+    name: 'Costillas verdaderas',
+    region: 'tronco',
+    group: 'Costillas',
+    kind: 'plano',
+    paired: true,
+    aliases: ['verdaderas', 'costillas esternales'],
+    summary: 'Las siete primeras (1.ª–7.ª). Cada una se une directamente al esternón mediante su propio cartílago costal.',
+    landmarks: [l('Cabeza, cuello y tubérculo'), l('Ángulo costal'), l('Surco costal', 'En el borde inferior: aloja vena, arteria y nervio intercostales.')],
+    forensic: 'La morfología del extremo esternal de la 4.ª costilla permite estimar la edad en adultos (método de İşcan).',
+  },
+  {
+    id: 'costillas-falsas',
+    name: 'Costillas falsas',
+    region: 'tronco',
+    group: 'Costillas',
+    kind: 'plano',
+    paired: true,
+    aliases: ['falsas'],
+    summary: 'La 8.ª, 9.ª y 10.ª. Su cartílago no llega al esternón: se une al cartílago de la costilla de encima.',
+  },
+  {
+    id: 'costillas-flotantes',
+    name: 'Costillas flotantes',
+    region: 'tronco',
+    group: 'Costillas',
+    kind: 'plano',
+    paired: true,
+    aliases: ['flotantes'],
+    summary: 'La 11.ª y la 12.ª. Son cortas y su extremo anterior queda libre, sin unirse al esternón ni a otras costillas.',
+  },
+]
+
+export const bones: Bone[] = [...craneo, ...cinturaEscapular, ...miembroSuperior, ...mano, ...pelvis, ...miembroInferior, ...pie, ...tronco]
 
 export const boneById: Record<string, Bone> = Object.fromEntries(bones.map((b) => [b.id, b]))

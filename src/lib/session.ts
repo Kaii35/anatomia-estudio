@@ -9,11 +9,11 @@ export type Bucket = 'choice' | 'write' | '3d'
 export const BUCKETS: { id: Bucket; label: string; hint: string }[] = [
   { id: 'choice', label: 'Selección múltiple', hint: 'Elige la opción correcta' },
   { id: 'write', label: 'Escribir', hint: 'Teclea la respuesta o enumera' },
-  { id: '3d', label: 'Modelo 3D', hint: 'Señala o reconoce en el modelo' },
+  { id: '3d', label: 'Modelo 3D', hint: 'Señala, reconoce o rotula el modelo' },
 ]
 
 export function bucketOf(q: Question): Bucket {
-  if (q.type === 'identify' || q.visual) return '3d'
+  if (q.type === 'identify' || q.type === 'label' || q.visual) return '3d'
   return q.type === 'choice' || q.type === 'multi' ? 'choice' : 'write'
 }
 
@@ -76,6 +76,8 @@ export function answerText(q: Question): string {
       return q.items.map((i) => i.label).join(' · ')
     case 'identify':
       return q.targets.map((t) => partName(t, models[q.model])).join(' · ')
+    case 'label':
+      return q.parts.map((p) => partName(p, models[q.model])).join(' · ')
   }
 }
 

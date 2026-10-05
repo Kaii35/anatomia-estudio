@@ -2,7 +2,7 @@ import type { Question, RegionId } from '../types'
 import { hashString, normalize, seededRandom, shuffle } from '../lib/text'
 import { boneById, bones } from './bones'
 import { models } from './models'
-import { partName, partRegion } from './parts'
+import { partAccept, partName, partRegion } from './parts'
 
 /**
  * PREGUNTAS ESCRITAS A MANO
@@ -11,6 +11,11 @@ import { partName, partRegion } from './parts'
  * Cualquier pregunta admite `image: 'img/archivo.jpg'` (dentro de /public).
  * Las opciones se barajan solas; `answer`/`answers` son índices sobre el orden escrito aquí.
  */
+const CARPO = ['escafoides', 'semilunar', 'piramidal', 'pisiforme', 'trapecio', 'trapezoide', 'grande', 'ganchoso']
+const METACARPO = ['mc-1', 'mc-2', 'mc-3', 'mc-4', 'mc-5']
+const TARSO = ['astragalo', 'calcaneo', 'navicular', 'cuboides', 'cuneiforme-medial', 'cuneiforme-intermedio', 'cuneiforme-lateral']
+const METATARSO = ['mt-1', 'mt-2', 'mt-3', 'mt-4', 'mt-5']
+
 const handmade: Question[] = [
   // ───────────── Cráneo ─────────────
   {
@@ -160,7 +165,7 @@ const handmade: Question[] = [
     id: 'h:ce:identify',
     type: 'identify',
     region: 'cintura-escapular',
-    model: 'esqueleto',
+    model: 'hombro',
     prompt: 'Selecciona todos los huesos de la cintura escapular.',
     targets: ['clavicula', 'escapula'],
     all: true,
@@ -244,7 +249,7 @@ const handmade: Question[] = [
     id: 'h:ms:antebrazo-identify',
     type: 'identify',
     region: 'miembro-superior',
-    model: 'esqueleto',
+    model: 'brazo',
     prompt: 'Selecciona los dos huesos del antebrazo.',
     targets: ['radio', 'cubito'],
     all: true,
@@ -541,7 +546,7 @@ const handmade: Question[] = [
     id: 'h:mi:pierna-identify',
     type: 'identify',
     region: 'miembro-inferior',
-    model: 'esqueleto',
+    model: 'pierna',
     prompt: 'Selecciona los dos huesos de la pierna.',
     targets: ['tibia', 'perone'],
     all: true,
@@ -714,6 +719,296 @@ const handmade: Question[] = [
     answer: 0,
     explanation: 'Igual que el pulgar: proximal y distal.',
   },
+
+  // ───────────── Láminas para rotular ─────────────
+  // De cada parte sale una línea a un recuadro. «only» deja visible solo la zona preguntada.
+  {
+    id: 'h:label:craneo',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo',
+    prompt: 'Pon el nombre a los huesos del cráneo.',
+    parts: ['frontal', 'parietal', 'occipital', 'temporal', 'esfenoides', 'cigomatico', 'maxilar', 'nasal', 'mandibula'],
+  },
+  {
+    id: 'h:label:craneo-neuro',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo',
+    prompt: 'Nombra los huesos señalados del neurocráneo.',
+    explanation: 'El etmoides completa el neurocráneo, pero queda oculto en el interior.',
+    parts: ['frontal', 'parietal', 'occipital', 'temporal', 'esfenoides'],
+  },
+  {
+    id: 'h:label:craneo-cara',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo',
+    prompt: 'Nombra los huesos señalados de la cara.',
+    parts: ['cigomatico', 'maxilar', 'nasal', 'mandibula'],
+  },
+  {
+    id: 'h:label:hombro',
+    type: 'label',
+    region: 'cintura-escapular',
+    model: 'hombro',
+    prompt: 'Nombra los dos huesos de la cintura escapular.',
+    parts: ['clavicula', 'escapula'],
+  },
+  {
+    id: 'h:label:escapula',
+    type: 'label',
+    region: 'cintura-escapular',
+    model: 'escapula',
+    prompt: 'Pon el nombre a las partes de la escápula.',
+    parts: ['escapula-acromion', 'escapula-coracoides', 'escapula-glenoidea', 'escapula-espina', 'escapula-supraespinosa', 'escapula-infraespinosa'],
+  },
+  {
+    id: 'h:label:ms',
+    type: 'label',
+    region: 'miembro-superior',
+    model: 'brazo',
+    prompt: 'Nombra los tres huesos largos del miembro superior.',
+    parts: ['humero', 'radio', 'cubito'],
+  },
+  {
+    id: 'h:label:mano-carpo',
+    type: 'label',
+    region: 'mano',
+    model: 'mano',
+    prompt: 'Pon el nombre a los 8 huesos del carpo.',
+    only: [...CARPO, ...METACARPO],
+    parts: CARPO,
+  },
+  {
+    id: 'h:label:mano-proximal',
+    type: 'label',
+    region: 'mano',
+    model: 'mano',
+    prompt: 'Nombra los huesos de la fila proximal del carpo.',
+    only: [...CARPO, ...METACARPO],
+    parts: ['escafoides', 'semilunar', 'piramidal', 'pisiforme'],
+  },
+  {
+    id: 'h:label:mano-distal',
+    type: 'label',
+    region: 'mano',
+    model: 'mano',
+    prompt: 'Nombra los huesos de la fila distal del carpo.',
+    only: [...CARPO, ...METACARPO],
+    parts: ['trapecio', 'trapezoide', 'grande', 'ganchoso'],
+  },
+  {
+    id: 'h:label:mano-rayo',
+    type: 'label',
+    region: 'mano',
+    model: 'mano',
+    prompt: 'Nombra los cuatro huesos que forman el dedo medio, de la palma a la punta.',
+    explanation: 'Metacarpiano, falange proximal, falange media y falange distal.',
+    parts: ['mc-3', 'fpm-3', 'fmm-3', 'fdm-3'],
+  },
+  {
+    id: 'h:label:pelvis',
+    type: 'label',
+    region: 'pelvis',
+    model: 'pelvis',
+    prompt: 'Pon el nombre a los huesos y porciones de la pelvis.',
+    explanation: 'Ilion, isquion y pubis son las tres porciones que se fusionan para formar cada coxal.',
+    parts: ['ilion', 'isquion', 'pubis', 'sacro', 'coccix', 'sinfisis-pubica'],
+  },
+  {
+    id: 'h:label:pelvis-coxal',
+    type: 'label',
+    region: 'pelvis',
+    model: 'pelvis',
+    prompt: 'Nombra las tres porciones del coxal.',
+    only: ['ilion', 'isquion', 'pubis'],
+    half: true,
+    parts: ['ilion', 'isquion', 'pubis'],
+  },
+  {
+    id: 'h:label:mi',
+    type: 'label',
+    region: 'miembro-inferior',
+    model: 'pierna',
+    prompt: 'Nombra los cuatro huesos del muslo, la rodilla y la pierna.',
+    parts: ['femur', 'rotula', 'tibia', 'perone'],
+  },
+  {
+    id: 'h:label:pie-tarso',
+    type: 'label',
+    region: 'pie',
+    model: 'pie',
+    prompt: 'Pon el nombre a los 7 huesos del tarso.',
+    only: [...TARSO, ...METATARSO],
+    parts: TARSO,
+  },
+  {
+    id: 'h:label:pie-retropie',
+    type: 'label',
+    region: 'pie',
+    model: 'pie',
+    prompt: 'Nombra los huesos señalados del tarso.',
+    only: [...TARSO, ...METATARSO],
+    parts: ['astragalo', 'calcaneo', 'navicular', 'cuboides'],
+  },
+  {
+    id: 'h:label:pie-rayo',
+    type: 'label',
+    region: 'pie',
+    model: 'pie',
+    prompt: 'Nombra los huesos del dedo gordo, del tarso a la punta.',
+    explanation: 'Cuneiforme medial, primer metatarsiano, falange proximal y falange distal: el dedo gordo no tiene falange media.',
+    parts: ['cuneiforme-medial', 'mt-1', 'fpp-1', 'fdp-1'],
+  },
+  {
+    id: 'h:label:columna',
+    type: 'label',
+    region: 'tronco',
+    model: 'columna',
+    prompt: 'Pon el nombre a las regiones de la columna vertebral.',
+    parts: ['cervicales', 'toracicas', 'lumbares', 'sacro', 'coccix'],
+  },
+  {
+    id: 'h:label:torax',
+    type: 'label',
+    region: 'tronco',
+    model: 'torax',
+    prompt: 'Pon el nombre a las partes del esternón y a los tipos de costillas.',
+    parts: ['esternon-manubrio', 'esternon-cuerpo', 'xifoides', 'costillas-verdaderas', 'costillas-falsas', 'costillas-flotantes'],
+  },
+  {
+    id: 'h:label:craneo-lateral',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo',
+    prompt: 'Pon el nombre a los huesos del cráneo en vista lateral.',
+    view: 'lateral',
+    parts: ['frontal', 'parietal', 'occipital', 'temporal', 'esfenoides', 'cigomatico', 'maxilar', 'nasal', 'mandibula'],
+  },
+  {
+    id: 'h:label:craneo-orbita',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo',
+    prompt: 'Nombra los huesos que forman la órbita y su contorno.',
+    view: 'orbita',
+    explanation: 'La órbita la forman siete huesos: frontal, cigomático, maxilar, esfenoides, etmoides, lagrimal y palatino (este último, en el fondo, no se señala).',
+    parts: ['frontal', 'cigomatico', 'maxilar', 'esfenoides', 'etmoides', 'lagrimal', 'nasal'],
+  },
+  {
+    id: 'h:label:craneo-sagital',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo-sagital',
+    prompt: 'Corte sagital: pon el nombre a los huesos señalados.',
+    explanation: 'El tabique nasal lo forman la lámina perpendicular del etmoides (arriba) y el vómer (abajo y atrás).',
+    parts: ['frontal', 'occipital', 'esfenoides', 'etmoides', 'vomer', 'palatino', 'maxilar'],
+  },
+  {
+    id: 'h:label:craneo-base',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo-base',
+    prompt: 'Base del cráneo vista desde arriba: nombra los huesos.',
+    explanation: 'Fosa craneal anterior: frontal, etmoides y alas menores del esfenoides. Media: esfenoides y temporales. Posterior: occipital y peñascos.',
+    parts: ['frontal', 'etmoides', 'esfenoides', 'temporal', 'occipital'],
+  },
+  {
+    id: 'h:label:craneo-inferior',
+    type: 'label',
+    region: 'craneo',
+    model: 'craneo-inferior',
+    prompt: 'Cara inferior del cráneo: nombra los huesos.',
+    explanation: 'El paladar duro lo forman las apófisis palatinas de los maxilares (delante) y las láminas horizontales de los palatinos (detrás).',
+    parts: ['occipital', 'temporal', 'esfenoides', 'vomer', 'palatino', 'maxilar', 'cigomatico'],
+  },
+
+  // ───────────── Columna y tórax ─────────────
+  {
+    id: 'h:tronco:vertebras-n',
+    type: 'choice',
+    region: 'tronco',
+    prompt: '¿Cuántas vértebras cervicales, torácicas y lumbares hay, en ese orden?',
+    options: ['7, 12 y 5', '7, 10 y 5', '5, 12 y 7', '8, 12 y 4'],
+    answer: 0,
+    explanation: 'Sumando las 5 sacras y unas 4 coccígeas fusionadas, la columna tiene 33 vértebras.',
+  },
+  {
+    id: 'h:tronco:regiones-list',
+    type: 'list',
+    region: 'tronco',
+    prompt: 'Escribe las 5 regiones de la columna vertebral.',
+    items: [
+      { label: 'Cervical', accept: ['cervicales', 'vértebras cervicales'] },
+      { label: 'Torácica', accept: ['torácicas', 'dorsal', 'dorsales', 'vértebras torácicas'] },
+      { label: 'Lumbar', accept: ['lumbares', 'vértebras lumbares'] },
+      { label: 'Sacra', accept: ['sacro', 'sacras'] },
+      { label: 'Coccígea', accept: ['cóccix', 'coxis', 'coccígeas'] },
+    ],
+  },
+  {
+    id: 'h:tronco:atlas',
+    type: 'write',
+    region: 'tronco',
+    prompt: '¿Cómo se llama la primera vértebra cervical (C1)?',
+    accept: ['atlas'],
+    explanation: 'No tiene cuerpo ni apófisis espinosa y sostiene el cráneo.',
+  },
+  {
+    id: 'h:tronco:axis',
+    type: 'choice',
+    region: 'tronco',
+    prompt: '¿Qué vértebra tiene el diente o apófisis odontoides?',
+    options: ['Axis (C2)', 'Atlas (C1)', 'Vértebra prominente (C7)', 'Primera torácica (T1)'],
+    answer: 0,
+  },
+  {
+    id: 'h:tronco:ahorcado',
+    type: 'choice',
+    region: 'tronco',
+    prompt: 'La «fractura del ahorcado» afecta a…',
+    options: ['Los pedículos del axis (C2)', 'El cuerpo de C7', 'La apófisis espinosa de T1', 'El arco anterior del atlas'],
+    answer: 0,
+    explanation: 'Se produce por hiperextensión brusca del cuello, como en el ahorcamiento con caída.',
+  },
+  {
+    id: 'h:tronco:costillas-n',
+    type: 'choice',
+    region: 'tronco',
+    prompt: '¿Cuántos pares de costillas verdaderas, falsas y flotantes hay, en ese orden?',
+    options: ['7, 3 y 2', '7, 5 y 0', '5, 5 y 2', '8, 2 y 2'],
+    answer: 0,
+    explanation: 'En muchos textos las flotantes se cuentan dentro de las falsas (5 pares falsos, de los que 2 son flotantes).',
+  },
+  {
+    id: 'h:tronco:esternon-list',
+    type: 'list',
+    region: 'tronco',
+    prompt: 'Escribe las tres partes del esternón.',
+    items: [
+      { label: 'Manubrio' },
+      { label: 'Cuerpo', accept: ['cuerpo del esternón', 'cuerpo esternal'] },
+      { label: 'Apófisis xifoides', accept: ['xifoides', 'apéndice xifoides', 'proceso xifoides'] },
+    ],
+  },
+  {
+    id: 'h:tronco:costilla-edad',
+    type: 'choice',
+    region: 'tronco',
+    prompt: '¿Qué parte de las costillas se usa para estimar la edad en adultos?',
+    options: ['El extremo esternal de la 4.ª costilla', 'La cabeza de la 1.ª costilla', 'El ángulo de la 12.ª costilla', 'El tubérculo de la 7.ª costilla'],
+    answer: 0,
+    explanation: 'Es el método de İşcan: con la edad el extremo esternal se excava y sus bordes se vuelven irregulares.',
+  },
+  {
+    id: 'h:tronco:transversos',
+    type: 'choice',
+    region: 'tronco',
+    prompt: '¿Qué vértebras tienen agujeros transversos para la arteria vertebral?',
+    options: ['Las cervicales', 'Las torácicas', 'Las lumbares', 'Todas'],
+    answer: 0,
+  },
 ]
 
 // ───────────── Preguntas generadas a partir de los datos ─────────────
@@ -781,7 +1076,7 @@ function modelQuestions(): Question[] {
           key,
           visual,
           prompt: 'Escribe el nombre de la estructura resaltada.',
-          accept: [name, ...(bone?.aliases ?? [])],
+          accept: partAccept(part, model),
         })
       }
     }

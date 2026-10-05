@@ -17,6 +17,7 @@ const TYPE_LABEL: Record<Question['type'], string> = {
   write: 'Respuesta escrita',
   list: 'Enumera',
   identify: 'Señala en el modelo',
+  label: 'Pon los nombres',
 }
 
 function Toggle({ active, onClick, children, color }: { active: boolean; onClick: () => void; children: ReactNode; color?: string }) {
@@ -64,7 +65,7 @@ function Setup({ onStart }: { onStart: (items: SessionItem[], regionIds: RegionI
         <section>
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold tracking-wider text-muted uppercase">Regiones</h2>
-            <button type="button" className="cursor-pointer text-sm font-medium text-accent" onClick={() => setPicked(allRegions ? [] : regions.map((r) => r.id))}>
+            <button type="button" className="cursor-pointer py-2 text-sm font-medium text-accent" onClick={() => setPicked(allRegions ? [] : regions.map((r) => r.id))}>
               {allRegions ? 'Quitar todas' : 'Todas'}
             </button>
           </div>
@@ -155,7 +156,7 @@ function Runner({ items, onDone, onExit }: { items: SessionItem[]; onDone: (scor
         <span className="text-sm font-medium text-muted tabular-nums">
           {i + 1} / {items.length}
         </span>
-        <button type="button" className="btn-ghost px-2 py-1.5" onClick={onExit} title="Salir de la práctica" aria-label="Salir de la práctica">
+        <button type="button" className="btn-ghost h-10 w-10 p-0" onClick={onExit} title="Salir de la práctica" aria-label="Salir de la práctica">
           <X size={18} />
         </button>
       </div>
@@ -167,7 +168,7 @@ function Runner({ items, onDone, onExit }: { items: SessionItem[]; onDone: (scor
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -24 }}
           transition={{ duration: 0.2 }}
-          className="card mt-5 p-5 sm:p-7"
+          className="card mt-5 p-4 sm:p-7"
         >
           <div className="flex flex-wrap gap-2">
             <span className="chip" style={{ color: region.color, borderColor: region.color }}>
@@ -263,7 +264,12 @@ type Phase = { k: 'setup' } | { k: 'run'; items: SessionItem[]; regionIds: Regio
 
 export function Practice() {
   const logSession = useProgress((s) => s.logSession)
-  const [phase, setPhase] = useState<Phase>({ k: 'setup' })
+  const [params] = useSearchParams()
+  // «?pregunta=<id>» abre directamente una pregunta concreta: útil para revisarla al añadir modelos.
+  const [phase, setPhase] = useState<Phase>(() => {
+    const q = questions.find((x) => x.id === params.get('pregunta'))
+    return q ? { k: 'run', items: buildSession([q], {}, 1), regionIds: [q.region], run: 0 } : { k: 'setup' }
+  })
 
   if (phase.k === 'setup') return <Setup onStart={(items, regionIds) => setPhase({ k: 'run', items, regionIds, run: Date.now() })} />
 

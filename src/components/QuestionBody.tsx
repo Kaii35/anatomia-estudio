@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { Check, X } from 'lucide-react'
-import type { ChoiceQ, IdentifyQ, ListQ, MultiQ, WriteQ } from '../types'
+import type { ChoiceQ, IdentifyQ, LabelQ, ListQ, MultiQ, WriteQ } from '../types'
 import type { SessionItem } from '../lib/session'
 import { cn, findMatch, matchAnswer } from '../lib/text'
 import { models } from '../data/models'
-import { partName } from '../data/parts'
+import { partAccept, partName } from '../data/parts'
 import { ModelViewer, type Mark } from '../three/ModelViewer'
 
 interface BodyProps<Q> {
@@ -266,7 +266,7 @@ export function IdentifyBody({ q, answered, onAnswer }: BodyProps<IdentifyQ>) {
 
   return (
     <div className="space-y-4">
-      <ModelViewer model={model} selected={selected} marks={marks} labels={answered} onPick={answered ? undefined : pick} className="h-[380px] md:h-[440px]" />
+      <ModelViewer model={model} selected={selected} marks={marks} labels={answered} onPick={answered ? undefined : pick} className="h-[340px] sm:h-[380px] md:h-[440px]" />
       {!answered ? (
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted">
@@ -287,6 +287,88 @@ export function IdentifyBody({ q, answered, onAnswer }: BodyProps<IdentifyQ>) {
   )
 }
 
+export function LabelBody({ q, answered, onAnswer }: BodyProps<LabelQ>) {
+  const model = models[q.model]
+  const [values, setValues] = useState<Record<string, string>>({})
+  const [active, setActive] = useState<string | null>(null)
+  const inputs = useRef<Record<string, HTMLInputElement | null>>({})
+
+  const isRight = (part: string) => !!matchAnswer(values[part] ?? '', partAccept(part, model))
+  const filled = q.parts.filter((p) => values[p]?.trim()).length
+  const check = () => {
+    const right = q.parts.filter(isRight).length
+    onAnswer(right === q.parts.length ? 1 : Math.min(0.9, right / q.parts.length))
+  }
+  /** Enter salta al siguiente recuadro vacío; con todos rellenos, comprueba. */
+  const advance = (from: string) => {
+    const empty = Object.entries(inputs.current).find(([part, el]) => part !== from && el && !el.value.trim())
+    if (empty) empty[1]!.focus()
+    else check()
+  }
+
+  const marks = useMemo(() => {
+    if (answered) return Object.fromEntries(q.parts.map((p) => [p, (isRight(p) ? 'ok' : 'bad') as Mark]))
+    return active ? { [active]: 'hint' as Mark } : undefined
+  }, [answered, active, q]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <div className="space-y-4">
+      <ModelViewer
+        model={model}
+        only={q.only}
+        half={q.half}
+        view={q.view}
+        marks={marks}
+        labels={answered}
+        callouts={q.parts}
+        activeCallout={active}
+        className="h-[340px] sm:h-[460px] md:h-[540px]"
+        renderCallout={(part) => {
+          const right = answered && isRight(part)
+          return (
+            <>
+              <input
+                ref={(el) => void (inputs.current[part] = el)}
+                value={values[part] ?? ''}
+                readOnly={answered}
+                onChange={(e) => setValues((v) => ({ ...v, [part]: e.target.value }))}
+                onFocus={() => setActive(part)}
+                onBlur={() => setActive((a) => (a === part ? null : a))}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' || answered) return
+                  e.preventDefault()
+                  advance(part)
+                }}
+                placeholder="Nombre…"
+                autoComplete="off"
+                spellCheck={false}
+                aria-label="Nombre de la parte señalada"
+                className={cn(
+                  'w-full rounded-lg border bg-black/55 px-2.5 py-2.5 text-base text-white outline-none placeholder:text-white/35 sm:py-2 sm:text-sm',
+                  !answered ? 'border-white/25 focus:border-[#ffc35c]' : right ? 'border-[#3ecf9e]' : 'border-[#f2708a]',
+                )}
+              />
+              {answered && !right && <p className="mt-1 px-1 text-xs font-semibold text-[#3ecf9e]">{partName(part, model)}</p>}
+            </>
+          )
+        }}
+      />
+      {!answered && (
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted">
+            <span className="hidden sm:inline">Escribe el nombre en cada recuadro; al situarte en uno se ilumina su parte. Puedes rotar el modelo. · </span>
+            <span className="sm:hidden">Cada número del modelo es un recuadro. · </span>
+            {filled} de {q.parts.length}
+          </p>
+          <button type="button" className="btn-primary shrink-0" disabled={!filled} onClick={check}>
+            Comprobar
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function QuestionBody({ item, answered, onAnswer }: { item: SessionItem; answered: boolean; onAnswer: (score: number) => void }) {
   const { q, order } = item
   const props = { order, answered, onAnswer }
@@ -296,13 +378,14 @@ export function QuestionBody({ item, answered, onAnswer }: { item: SessionItem; 
     <div className="space-y-5">
       {q.image && <img src={q.image} alt="" className="max-h-80 w-full rounded-2xl border border-line object-contain" />}
       {q.visual && q.type !== 'identify' && (
-        <ModelViewer model={q.visual.model} marks={marks} focus labels={answered} className="h-[320px] md:h-[380px]" />
+        <ModelViewer model={q.visual.model} marks={marks} focus labels={answered} className="h-[300px] sm:h-[320px] md:h-[380px]" />
       )}
       {q.type === 'choice' && <ChoiceBody q={q} {...props} />}
       {q.type === 'multi' && <MultiBody q={q} {...props} />}
       {q.type === 'write' && <WriteBody q={q} {...props} />}
       {q.type === 'list' && <ListBody q={q} {...props} />}
       {q.type === 'identify' && <IdentifyBody q={q} {...props} />}
+      {q.type === 'label' && <LabelBody q={q} {...props} />}
     </div>
   )
 }

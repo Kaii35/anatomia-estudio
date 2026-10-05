@@ -24,9 +24,12 @@ interface ProgressState {
   /** Días (AAAA-MM-DD, hora local) en los que se respondió al menos una pregunta. */
   days: string[]
   theme: 'dark' | 'light'
+  /** Modelos 3D con cada hueso de su color (true) o en color hueso uniforme (false). */
+  colors: boolean
   record: (questionId: string, score: number) => void
   logSession: (log: SessionLog) => void
   toggleTheme: () => void
+  toggleColors: () => void
   reset: () => void
 }
 
@@ -41,6 +44,7 @@ export const useProgress = create<ProgressState>()(
       sessions: [],
       days: [],
       theme: 'dark',
+      colors: false,
       record: (id, score) =>
         set((s) => {
           const prev = s.stats[id] ?? { seen: 0, ok: 0, streak: 0, lastOk: false, last: 0 }
@@ -56,6 +60,7 @@ export const useProgress = create<ProgressState>()(
         }),
       logSession: (log) => set((s) => ({ sessions: [log, ...s.sessions].slice(0, 60) })),
       toggleTheme: () => set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      toggleColors: () => set((s) => ({ colors: !s.colors })),
       reset: () => set({ stats: {}, sessions: [], days: [] }),
     }),
     { name: 'osteolab-progreso' },
