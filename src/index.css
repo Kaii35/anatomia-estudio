@@ -1,0 +1,99 @@
+@import 'tailwindcss';
+
+:root {
+  --bg: #f6f1e8;
+  --surface: #fffdf9;
+  --surface-2: #efe8db;
+  --line: #e0d6c4;
+  --ink: #26222b;
+  --muted: #6b6473;
+  --accent: #c44f2e;
+  --accent-ink: #ffffff;
+  --ok: #17805e;
+  --bad: #c9354f;
+}
+
+[data-theme='dark'] {
+  --bg: #111218;
+  --surface: #1a1c25;
+  --surface-2: #232633;
+  --line: #2f3344;
+  --ink: #ece8e1;
+  --muted: #9c9eae;
+  --accent: #f08a68;
+  --accent-ink: #1c120e;
+  --ok: #3ecf9e;
+  --bad: #f2708a;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-bad: var(--bad);
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Fraunces', Georgia, serif;
+}
+
+html {
+  color-scheme: light;
+}
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+@utility card {
+  @apply rounded-2xl border border-line bg-surface;
+}
+@utility btn {
+  @apply inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition outline-none select-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-40;
+}
+@utility btn-primary {
+  @apply btn bg-accent text-accent-ink hover:brightness-110 active:scale-[0.98];
+}
+@utility btn-soft {
+  @apply btn border border-line bg-surface-2 text-ink hover:border-accent/60;
+}
+@utility btn-ghost {
+  @apply btn text-muted hover:bg-surface-2 hover:text-ink;
+}
+@utility chip {
+  @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1 text-xs font-medium text-muted;
+}
+@utility field {
+  @apply w-full rounded-xl border border-line bg-surface-2 px-4 py-3 text-base text-ink outline-none transition placeholder:text-muted/70 focus:border-accent;
+}
+
+/* El escenario 3D es siempre oscuro para que el hueso contraste en ambos temas. */
+.stage {
+  background: radial-gradient(circle at 50% 35%, #363c50 0%, #1b1d28 55%, #13141b 100%);
+}
+
+@keyframes shake {
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(4px); }
+}
+.shake {
+  animation: shake 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shake {
+    animation: none;
+  }
+}
