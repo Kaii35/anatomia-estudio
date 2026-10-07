@@ -30,7 +30,7 @@ const PUBLICAR = [
   'craneo-base.glb',
   'craneo-inferior.glb',
   // miembro superior
-  'esqueleto-hombro.glb',
+  'hombro.glb',
   'esqueleto-escapula.glb',
   'hombro-anterior.glb',
   'hombro-vista-anterior.glb',

@@ -127,7 +127,7 @@ export const models: Record<string, ModelDef> = {
   }),
 
   // ───────────── Cintura escapular ─────────────
-  hombro: model('hombro', 'Cintura escapular', 'esqueleto-hombro', ['clavicula', 'escapula'], {
+  hombro: model('hombro', 'Cintura escapular', 'hombro', ['clavicula', 'escapula'], {
     resolve: wholeBones,
     views: [ANTERIOR, POSTERIOR, { id: 'superior', label: 'Superior', dir: [0, 0.98, 0.2] }],
   }),
