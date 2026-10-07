@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { BarChart3, Bone, Dumbbell, Home, Moon, Sun } from 'lucide-react'
 import { useProgress } from '../store/progress'
 import { cn } from '../lib/text'
@@ -13,11 +13,14 @@ const links = [
 export function Layout({ children }: { children: ReactNode }) {
   const theme = useProgress((s) => s.theme)
   const toggleTheme = useProgress((s) => s.toggleTheme)
+  // Estudiar aprovecha todo el ancho de la pantalla: el modelo 3D es lo que más espacio necesita.
+  const wide = useLocation().pathname.startsWith('/region/')
+  const width = wide ? 'max-w-[1680px]' : 'max-w-6xl'
 
   return (
     <div className="min-h-screen">
       <header className="sticky top-0 z-20 border-b border-line bg-bg/85 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-6xl items-center gap-1 px-3 sm:gap-2 sm:px-6">
+        <div className={cn('mx-auto flex h-16 items-center gap-1 px-3 sm:gap-2 sm:px-6', width)}>
           <NavLink to="/" className="mr-auto flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent text-accent-ink">
               <Bone size={19} />
@@ -57,7 +60,7 @@ export function Layout({ children }: { children: ReactNode }) {
           </button>
         </div>
       </header>
-      <main className="mx-auto max-w-6xl px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10">{children}</main>
+      <main className={cn('mx-auto px-4 pt-6 pb-[max(2rem,env(safe-area-inset-bottom))] sm:px-6 sm:py-10', width)}>{children}</main>
     </div>
   )
 }

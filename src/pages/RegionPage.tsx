@@ -173,7 +173,7 @@ function RegionView({ region }: { region: Region }) {
         </Link>
       </div>
 
-      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <div className="mt-8 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1fr)_26rem] 2xl:grid-cols-[minmax(0,1fr)_30rem]">
         <div className="space-y-4 lg:sticky lg:top-24 lg:self-start">
           {modelId ? (
             <>
@@ -206,7 +206,7 @@ function RegionView({ region }: { region: Region }) {
                     {partName(p)}
                   </button>
                 )}
-                className="h-[340px] sm:h-[460px] lg:h-[620px]"
+                className="h-[340px] sm:h-[460px] lg:h-[620px] xl:h-[clamp(480px,calc(100vh-17.5rem),920px)]"
               />
               {/* En móvil la ficha queda lejos, bajo la lista de huesos: acceso directo a ella. */}
               <button

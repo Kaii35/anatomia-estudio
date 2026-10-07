@@ -818,7 +818,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
               key={side}
               className={cn(
                 // Las columnas terminan por encima de los botones de vista, y se aprietan si hay muchas etiquetas.
-                'pointer-events-none absolute top-14 flex w-[31%] max-w-52 flex-col justify-center',
+                'pointer-events-none absolute top-14 flex w-[31%] max-w-52 flex-col justify-center xl:max-w-60',
                 def.views && def.views.length > 1 ? 'bottom-14' : 'bottom-4',
                 layout[side].length > 8 ? 'gap-1' : 'gap-2.5',
                 side === 'left' ? 'left-3' : 'right-3',
