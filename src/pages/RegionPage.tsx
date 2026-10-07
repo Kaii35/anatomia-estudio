@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { ArrowDown, ArrowLeft, ArrowRight, Box, Fingerprint, Link2, MapPin, Tags } from 'lucide-react'
 import type { Bone, Region, RegionId } from '../types'
@@ -94,6 +94,8 @@ function RegionView({ region }: { region: Region }) {
   const groups = [...new Set(list.map((b) => b.group))]
   const [boneId, setBoneId] = useState(list[0].id)
   const [pick, setPick] = useState<Picked | null>(null)
+  /** true tras cambiar de vista: nada resaltado hasta que se vuelva a elegir algo. */
+  const [cleared, setCleared] = useState(false)
   const [modelId, setModelId] = useState<string | undefined>(region.models[0])
   const [showLabels, setShowLabels] = useState(true)
   // Leyenda del modo «Colores»: color de cada parte del modelo cargado.
@@ -120,20 +122,35 @@ function RegionView({ region }: { region: Region }) {
   const goTo = (part: string) => setFly((f) => ({ part, n: (f?.n ?? 0) + 1 }))
   const select = (next: Picked) => {
     setPick(next)
+    setCleared(false)
     if (!next.mesh) goTo(next.part)
     const owner = partBone(next.part)
     if (owner) setBoneId(owner)
   }
 
-  // Etiquetas con flecha: las partes del modelo del mismo grupo que el hueso abierto
-  // (p. ej. solo la fila proximal del carpo), o todas si el modelo tiene pocas.
-  const sameGroup = modelParts.filter((p) => boneById[partBone(p) ?? '']?.group === bone.group)
-  // Si el modelo trae el hueso abierto dividido en zonas, se etiquetan esas zonas y no las de sus vecinos.
+  // Etiquetas con flecha. Dependen solo del modelo (y, dentro del visor, de la vista elegida):
+  // seleccionar una parte nunca las cambia.
+  const labelParts = useMemo(() => {
+    const detail = modelParts.filter((p) => partBone(p) && partBone(p) !== p) // zonas, puntos y porciones de un hueso
+    const whole = modelParts.filter((p) => boneById[p])
+    // Modelo de uno o pocos huesos: se etiqueta todo su detalle.
+    if (detail.length + whole.length <= 24) return [...detail, ...whole]
+    // Modelo grande (un miembro entero): una etiqueta por hueso. Los huesos de series numeradas
+    // (metacarpianos, falanges) entran por grupos completos mientras quepan.
+    const owners = [...new Set([...whole, ...detail.map((p) => partBone(p)!)])]
+    const out = owners.filter((b) => !boneById[b].series)
+    for (const group of new Set(owners.filter((b) => boneById[b].series).map((b) => boneById[b].group))) {
+      const members = owners.filter((b) => boneById[b].series && boneById[b].group === group)
+      if (out.length + members.length > 14) break
+      out.push(...members)
+    }
+    return out.slice(0, 14)
+  }, [modelParts.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Zonas del hueso abierto presentes en el modelo: si las hay, el hueso no se resalta entero al abrir su ficha.
   const ownZones = modelParts.filter((p) => p !== bone.id && partBone(p) === bone.id)
-  const labelParts = (ownZones.length > 1 ? ownZones : sameGroup.length ? sameGroup : modelParts.length <= 9 ? modelParts : []).filter((p) => p !== 'dientes').slice(0, 22)
-  // Leyenda de colores: todo el modelo si es pequeño; si no, solo las zonas del hueso abierto.
-  const legendParts = modelParts.length <= 24 ? modelParts : ownZones
-  const activePart = pick?.part ?? bone.id
+  // Leyenda de colores: todas las partes del modelo, si no son demasiadas.
+  const legendParts = modelParts.length <= 30 ? modelParts : []
+  const activePart = cleared ? null : (pick?.part ?? bone.id)
 
   // Texto de «Parte señalada»: solo si aporta algo más que el nombre del hueso de la ficha.
   const pickedName = pick && partName(pick.part)
@@ -162,10 +179,16 @@ function RegionView({ region }: { region: Region }) {
             <>
               <ModelViewer
                 model={modelId}
-                selected={pick?.mesh ? [] : pick ? [pick.part] : ownZones.length > 1 ? [] : partsOfBone(bone.id)}
+                selected={pick?.mesh || cleared ? [] : pick ? [pick.part] : ownZones.length > 1 ? [] : partsOfBone(bone.id)}
                 hideOccludedCallouts
                 selectedMesh={pick?.mesh}
                 flyTo={fly}
+                onViewChange={() => {
+                  // Al cambiar de vista se empieza limpio: sin nada marcado.
+                  setPick(null)
+                  setFly(null)
+                  setCleared(true)
+                }}
                 onReady={onReady}
                 onMeshClick={(click) => click.partId && select({ part: click.partId, mesh: click.meshName })}
                 callouts={showLabels && labelParts.length ? labelParts : undefined}
@@ -176,13 +199,14 @@ function RegionView({ region }: { region: Region }) {
                     onClick={() => select({ part: p })}
                     className={cn(
                       'w-full cursor-pointer rounded-lg border px-2.5 py-2.5 text-left text-[13px] leading-tight font-semibold transition sm:py-1.5',
+                      labelParts.length > 16 && 'sm:py-1 sm:text-xs',
                       p === activePart ? 'border-[#ffc35c] bg-black/70 text-white' : 'border-white/20 bg-black/50 text-white/85 hover:border-white/50',
                     )}
                   >
                     {partName(p)}
                   </button>
                 )}
-                className="h-[340px] sm:h-[440px] lg:h-[540px]"
+                className="h-[340px] sm:h-[460px] lg:h-[620px]"
               />
               {/* En móvil la ficha queda lejos, bajo la lista de huesos: acceso directo a ella. */}
               <button
@@ -258,6 +282,7 @@ function RegionView({ region }: { region: Region }) {
                         onClick={() => {
                           setBoneId(b.id)
                           setPick(null)
+                          setCleared(false)
                           goTo(b.id)
                         }}
                         className={cn(

@@ -210,7 +210,8 @@ export const models: Record<string, ModelDef> = {
   // ───────────── Miembro superior ─────────────
   humero: model('humero', 'Húmero', 'humero-anterior', [...HUMERO, 'humero-fosa-coronoidea'], {
     hotspots: [{ id: 'humero-fosa-coronoidea', position: [-0.009, -0.111, -0.003] }],
-    views: [ANTERIOR, POSTERIOR, LATERAL, MEDIAL] }),
+    views: [ANTERIOR, { ...POSTERIOR, hide: ['humero-fosa-coronoidea'] }, LATERAL, MEDIAL],
+  }),
   antebrazo: model('antebrazo', 'Radio y cúbito', 'radio-y-cubito-anterior', [...RADIO, 'radio-fovea', ...CUBITO], {
     hotspots: [{ id: 'radio-fovea', position: [0.003, 0.108, -0.002] }],
     views: [ANTERIOR, POSTERIOR, { id: 'proximal', label: 'Articular proximal', dir: [0, 0.94, 0.34] }, { id: 'distal', label: 'Articular distal', dir: [0, -0.94, 0.34] }],
@@ -246,7 +247,8 @@ export const models: Record<string, ModelDef> = {
   // ───────────── Miembro inferior ─────────────
   femur: model('femur', 'Fémur', 'femur-anterior', [...FEMUR, 'femur-poplitea'], {
     hotspots: [{ id: 'femur-poplitea', position: [-0.005, -0.142, -0.013] }],
-    views: [ANTERIOR, POSTERIOR, LATERAL, MEDIAL] }),
+    views: [{ ...ANTERIOR, hide: ['femur-poplitea'] }, POSTERIOR, LATERAL, MEDIAL],
+  }),
   tibia: model('tibia', 'Tibia', 'tibia-cara-anterior', TIBIA, { views: [ANTERIOR, { ...MEDIAL, label: 'Cara interna' }, POSTERIOR, LATERAL, SUPERIOR] }),
   perone: model('perone', 'Peroné', 'perone-anterior', PERONE, { views: [ANTERIOR, LATERAL, MEDIAL, POSTERIOR] }),
   'pierna-huesos': model('pierna-huesos', 'Fémur, tibia y peroné', 'femur-tibia-y-perone-anterior', [], { views: [ANTERIOR, POSTERIOR, LATERAL] }),

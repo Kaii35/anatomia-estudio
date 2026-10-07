@@ -1,7 +1,7 @@
 import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Bvh, OrbitControls, useGLTF } from '@react-three/drei'
-import { Box3, BufferGeometry, Color, Quaternion, type DirectionalLight, type Group, Mesh, Raycaster, MeshStandardMaterial, SphereGeometry, Vector3, type Material, type Object3D, type PerspectiveCamera } from 'three'
+import { Box3, BufferGeometry, Color, Quaternion, type DirectionalLight, type Group, Mesh, Raycaster, MeshStandardMaterial, SphereGeometry, Vector3, type Intersection, type Material, type Object3D, type PerspectiveCamera } from 'three'
 import { Palette, RotateCcw } from 'lucide-react'
 import { models, type ModelDef, type ModelView } from '../data/models'
 import { partBone, partName } from '../data/parts'
@@ -36,6 +36,8 @@ interface Props {
   only?: string[]
   /** Vista inicial (id de una de las `views` del modelo). */
   view?: string
+  /** Se llama cuando el usuario cambia de vista con los botones (Anterior, Posterior…). */
+  onViewChange?: () => void
   /** Encuadra solo estas partes en vez del modelo entero. */
   fitParts?: string[]
   /** Lleva la cámara, con una animación, hasta esta parte. `n` permite repetir el viaje a la misma parte. */
@@ -194,6 +196,20 @@ function prepare(root: Object3D, def: ModelDef, only?: string[], half?: boolean)
   return root
 }
 
+/**
+ * Primer impacto de un rayo, con el trazado estándar de three. El visor acelera los
+ * clics con un índice espacial que se construye poco después de montar el modelo; si
+ * estas comprobaciones lo usaran, darían un resultado al cargar y otro distinto después.
+ */
+function firstHit(ray: Raycaster, meshes: Mesh[]): Intersection | undefined {
+  const hits: Intersection[] = []
+  for (const mesh of meshes) Mesh.prototype.raycast.call(mesh, ray, hits)
+  return hits.sort((a, b) => a.distance - b.distance)[0]
+}
+
+/** ¿Forma esta malla parte de `id`? Lo es si es esa parte o, cuando `id` es un hueso entero, una de sus zonas. */
+const belongsTo = (mesh: Mesh, id: string) => mesh.userData.partId === id || (!mesh.userData.point && !!mesh.userData.partId && partBone(mesh.userData.partId) === id)
+
 /** Tamaño de una caja medido a lo largo de una dirección. */
 const extent = (size: Vector3, axis: Vector3) => Math.abs(axis.x) * size.x + Math.abs(axis.y) * size.y + Math.abs(axis.z) * size.z
 
@@ -255,18 +271,17 @@ interface Layout {
 }
 
 /** Calcula el punto de anclaje de cada parte y mantiene las líneas guía pegadas a él al rotar. */
-function CalloutLines({ object, parts, viewKey, hideOccluded, hidden, lines, dots, badges, boxes, onLayout }: { object: Object3D; parts: string[]; viewKey: string; hideOccluded?: boolean; hidden?: string[]; lines: ElMap<SVGLineElement>; dots: ElMap<SVGCircleElement>; badges: ElMap<SVGGElement>; boxes: ElMap<HTMLElement>; onLayout: (l: Layout) => void }) {
+function CalloutLines({ object, parts, viewKey, viewDir, hideOccluded, hidden, lines, dots, badges, boxes, onLayout }: { object: Object3D; parts: string[]; viewKey: string; viewDir?: [number, number, number]; hideOccluded?: boolean; hidden?: string[]; lines: ElMap<SVGLineElement>; dots: ElMap<SVGCircleElement>; badges: ElMap<SVGGElement>; boxes: ElMap<HTMLElement>; onLayout: (l: Layout) => void }) {
   const anchors = useRef(new Map<string, Vector3>())
   const v = useMemo(() => new Vector3(), [])
-  const camera = useThree((s) => s.camera)
 
   useEffect(() => {
     object.updateWorldMatrix(true, true)
-    camera.updateMatrixWorld()
-    // Ejes de la pantalla en el espacio del modelo, según la vista inicial de la cámara.
-    const right = new Vector3().setFromMatrixColumn(camera.matrixWorld, 0)
-    const up = new Vector3().setFromMatrixColumn(camera.matrixWorld, 1)
-    const toCamera = new Vector3().setFromMatrixColumn(camera.matrixWorld, 2)
+    // Ejes de la pantalla en el espacio del modelo. Salen de la dirección de la vista elegida, no
+    // de la cámara en ese instante: así una vista da siempre exactamente las mismas etiquetas.
+    const toCamera = new Vector3(...(viewDir ?? [0, 0, 1])).normalize()
+    const right = Math.abs(toCamera.y) > 0.95 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0).cross(toCamera).normalize()
+    const up = toCamera.clone().cross(right)
     const onScreen = (p: Vector3) => new Vector3(p.dot(right), p.dot(up), 0)
 
     // Los huesos pares se reparten a ambos lados del plano medio (x). En una vista lateral se
@@ -277,7 +292,7 @@ function CalloutLines({ object, parts, viewKey, hideOccluded, hidden, lines, dot
     const world = new Map<string, Vector3>()
     const otherSide = new Map<string, Mesh[]>()
     for (const id of parts) {
-      const all = meshesOf(object).filter((m) => m.userData.partId === id)
+      const all = meshesOf(object).filter((m) => belongsTo(m, id))
       if (!all.length) continue
       const oneSide = all.filter((m) => (centerOf(m).x - mid) * sign >= 0)
       const paired = oneSide.length > 0 && oneSide.length < all.length
@@ -291,10 +306,13 @@ function CalloutLines({ object, parts, viewKey, hideOccluded, hidden, lines, dot
       const ray = new Raycaster()
       const meshes = meshesOf(object)
       const points = new Set(meshes.filter((m) => m.userData.point).map((m) => m.userData.partId as string))
+      // Se mira en paralelo a la dirección de la vista, no desde la posición exacta de la cámara:
+      // así el resultado es siempre el mismo para una vista, sea cual sea el tamaño del visor o el zoom.
+      const span = new Box3().setFromObject(object).getSize(new Vector3()).length()
       for (const [id, anchor] of [...world]) {
-        ray.set(camera.position, anchor.clone().sub(camera.position).normalize())
-        const hit = ray.intersectObjects(meshes, false)[0]
-        const reaches = hit && (hit.object.userData.partId === id || (!points.has(id) && hit.point.distanceTo(anchor) <= camera.position.distanceTo(anchor) * 0.004))
+        ray.set(anchor.clone().addScaledVector(toCamera, span * 2), toCamera.clone().negate())
+        const hit = firstHit(ray, meshes)
+        const reaches = hit && (belongsTo(hit.object as Mesh, id) || (!points.has(id) && hit.point.distanceTo(anchor) <= span * 0.004))
         if (hit && !reaches) world.delete(id)
       }
     }
@@ -329,7 +347,7 @@ function CalloutLines({ object, parts, viewKey, hideOccluded, hidden, lines, dot
     const centre = onScreen(box.getCenter(new Vector3()))
     const order = (column: string[], x: number) => uncrossed(column.map((id) => flat.get(id)!), x, centre.y, reach * 0.12).map((i) => column[i])
     onLayout({ left: order(left, centre.x - reach), right: order(right_, centre.x + reach) })
-  }, [object, parts, viewKey, hideOccluded, hidden, camera, onLayout])
+  }, [object, parts, viewKey, viewDir, hideOccluded, hidden, onLayout])
 
   useFrame(({ camera, gl }) => {
     const stage = gl.domElement.getBoundingClientRect()
@@ -525,7 +543,7 @@ function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, f
     // Se gira solo si hace falta: si la parte ya se ve desde donde está la cámara, basta con acercarse.
     const facing = facingOf(object, meshes)
     const ray = new Raycaster(camera.position, toTarget.clone().sub(camera.position).normalize())
-    const first = ray.intersectObjects(meshesOf(object), false)[0]
+    const first = firstHit(ray, meshesOf(object))
     const inSight = !!first && meshes.includes(first.object as Mesh)
     const sideways = !!facing && facing.dot(fromDir) < 0.35
     let toDir = fromDir.clone()
@@ -541,7 +559,7 @@ function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, f
           .sort((a, b) => b.dot(fromDir) - a.dot(fromDir))
         const clear = candidates.find((d) => {
           ray.set(toTarget.clone().addScaledVector(d, far), d.clone().negate())
-          const hit = ray.intersectObjects(all, false)[0]
+          const hit = firstHit(ray, all)
           return !!hit && meshes.includes(hit.object as Mesh)
         })
         if (clear) toDir = clear
@@ -676,7 +694,7 @@ class LoadBoundary extends Component<{ children: ReactNode }, { failed: boolean 
   }
 }
 
-export function ModelViewer({ model, labels = true, className, onPick, onReady, only, half, view: initialView, focusPart, fitParts, flyTo, callouts, renderCallout, activeCallout, hideOccludedCallouts, ...rest }: Props) {
+export function ModelViewer({ model, labels = true, className, onPick, onReady, only, half, view: initialView, onViewChange, focusPart, fitParts, flyTo, callouts, renderCallout, activeCallout, hideOccludedCallouts, ...rest }: Props) {
   const def = typeof model === 'string' ? models[model] : model
   const [hovered, setHovered] = useState<string | null>(null)
   const [resets, setResets] = useState(0)
@@ -713,9 +731,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
   const calloutKey = callouts?.join('|')
   const stableOnly = useMemo(() => only, [onlyKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const stableCallouts = useMemo(() => callouts, [calloutKey]) // eslint-disable-line react-hooks/exhaustive-deps
-  // Al terminar un viaje se recalculan las etiquetas visibles desde el nuevo punto de vista.
-  const [flights, setFlights] = useState(0)
-  const onFlyEnd = useCallback(() => setFlights((n) => n + 1), [])
+  const onFlyEnd = useCallback(() => {}, [])
   const stableFit = useMemo(() => fitParts, [fitParts?.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sourceKey = `${def.url}:${onlyKey ?? ''}:${half ? 1 : 0}`
@@ -746,7 +762,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
     setHovered,
     onTap: setTapped,
     children: stableCallouts
-      ? (object) => <CalloutLines object={object} parts={stableCallouts} viewKey={`${activeView?.id}:${resets}:${flights}`} hideOccluded={hideOccludedCallouts} hidden={activeView?.hide} lines={lines} dots={dots} badges={badges} boxes={boxes} onLayout={setLayout} />
+      ? (object) => <CalloutLines object={object} parts={stableCallouts} viewKey={`${activeView?.id}:${resets}`} viewDir={activeView?.dir} hideOccluded={hideOccludedCallouts} hidden={activeView?.hide} lines={lines} dots={dots} badges={badges} boxes={boxes} onLayout={setLayout} />
       : undefined,
   }
 
@@ -801,7 +817,10 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
             <div
               key={side}
               className={cn(
-                'pointer-events-none absolute top-12 bottom-4 flex w-[31%] max-w-52 flex-col justify-center gap-2.5',
+                // Las columnas terminan por encima de los botones de vista, y se aprietan si hay muchas etiquetas.
+                'pointer-events-none absolute top-14 flex w-[31%] max-w-52 flex-col justify-center',
+                def.views && def.views.length > 1 ? 'bottom-14' : 'bottom-4',
+                layout[side].length > 8 ? 'gap-1' : 'gap-2.5',
                 side === 'left' ? 'left-3' : 'right-3',
               )}
             >
@@ -846,6 +865,8 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
               onClick={() => {
                 setViewId(v.id)
                 setResets((n) => n + 1)
+                setTapped(null)
+                onViewChange?.()
               }}
               className={cn(
                 'cursor-pointer rounded-md px-3 py-2.5 text-xs font-semibold transition sm:px-2.5 sm:py-1',
@@ -858,7 +879,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
         </div>
       )}
       {labels && (hovered ?? tapped) && (
-        <span className="pointer-events-none absolute top-16 left-1/2 max-w-[90%] -translate-x-1/2 truncate rounded-full bg-black/60 sm:top-auto sm:bottom-3 px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap text-white">
+        <span className="pointer-events-none absolute top-3 left-3 max-w-[calc(100%-11rem)] truncate rounded-lg bg-black/65 px-3 py-2 text-sm font-semibold whitespace-nowrap text-white">
           {partName((hovered ?? tapped)!, def)}
         </span>
       )}
