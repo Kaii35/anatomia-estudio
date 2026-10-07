@@ -16,7 +16,7 @@ export function normalizeMeshName(name: string): string {
 const FINGER: Record<string, number> = { thumb: 1, index: 2, middle: 3, ring: 4, little: 5 }
 const SEGMENT: Record<string, string> = { proximal: 'p', middle: 'm', distal: 'd' }
 const CUNEIFORM: Record<string, string> = { medial: 'medial', intermediate: 'intermedio', lateral: 'lateral' }
-const SCAPULA: Record<string, string> = { coracoid: 'coracoides', acromion: 'acromion', glenoid: 'glenoidea', spine: 'espina', supraspinous: 'supraespinosa', infraspinous: 'infraespinosa' }
+const SCAPULA: Record<string, string> = { coracoid: 'coracoides', acromion: 'acromion', glenoid: 'glenoidea', spine: 'espina', supraspinous: 'supraespinosa', infraspinous: 'infraespinosa', subscapular: 'subescapular' }
 const STERNUM: Record<string, string> = { manubrium: 'esternon-manubrio', body: 'esternon-cuerpo', xiphoid: 'xifoides' }
 const PELVIS: Record<string, string> = { ilium: 'ilion', ischium: 'isquion', pubis: 'pubis' }
 const SPINE: Record<string, string> = { C: 'cervicales', T: 'toracicas', L: 'lumbares' }

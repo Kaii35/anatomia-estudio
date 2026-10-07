@@ -44,6 +44,8 @@ export interface ModelDef {
   /** Asignación propia de este modelo: nombre de malla → parte. `undefined` deja actuar a las reglas generales. */
   resolve?: (meshName: string) => string | null | undefined
   hotspots?: Hotspot[]
+  /** Si se indica, solo se cargan las mallas cuyo nombre lo cumple (p. ej. una sola vértebra de la columna). */
+  keep?: (meshName: string) => boolean
   /** Rotación en radianes para modelos exportados con otro eje vertical. */
   rotation?: [number, number, number]
   /** Vistas disponibles; la primera es la inicial. Sin ellas, el modelo se ve de frente. */
@@ -78,15 +80,20 @@ const FEMUR = ['head', 'fovea_capitis', 'neck', 'greater_trochanter', 'lesser_tr
 const TIBIA = ['medial_condyle', 'lateral_condyle', 'glenoid_cavities', 'intercondylar_eminence', 'tibial_tuberosity', 'fibular_facet', 'anterior_crest', 'medial_surface', 'lateral_surface', 'posterior_surface', 'soleal_line', 'nutrient_foramen', 'distal_end', 'medial_malleolus', 'fibular_notch', 'talar_facet'].map((z) => `tibia_${z}`)
 const PERONE = ['head', 'apex', 'neck', 'lateral_surface', 'medial_surface', 'interosseous_border', 'anterior_border', 'lateral_malleolus', 'malleolar_facet'].map((z) => `fibula_${z}`)
 const SACRO = ['promontory', 'ala', 'superior_articular_process', 'sacral_canal', 'sacral_hiatus', 'median_crest', 'intermediate_crests', 'lateral_crests', 'anterior_foramina', 'posterior_foramina', 'transverse_lines', 'auricular_surface'].map((z) => `sacrum_${z}`)
-const ESCAPULA = ['escapula-acromion', 'escapula-coracoides', 'escapula-glenoidea', 'escapula-espina', 'escapula-supraespinosa', 'escapula-infraespinosa']
+const ESCAPULA = ['escapula-acromion', 'escapula-coracoides', 'escapula-glenoidea', 'escapula-espina', 'escapula-supraespinosa', 'escapula-infraespinosa', 'escapula-subescapular']
 
 // Accidentes que no son una malla aparte: se marcan con un punto. Coordenadas leídas en /#/modelos?modelo=<id>.
 const PUNTOS_ESCAPULA: Hotspot[] = [
   { id: 'escapula-angulo-superior', position: [0.059, 1.397, -0.07] },
+  { id: 'escapula-borde-superior', position: [0.082, 1.395, -0.063] },
+  { id: 'escapula-angulo-lateral', position: [0.142, 1.35, -0.029] },
   { id: 'escapula-escotadura', position: [0.112, 1.388, -0.049] },
   { id: 'escapula-cuello', position: [0.135, 1.363, -0.027] },
   { id: 'escapula-borde-medial', position: [0.058, 1.322, -0.073] },
-  { id: 'escapula-subescapular', position: [0.09, 1.322, -0.062] },
+  // Tres puntos, uno sobre cada cresta visible de la cara anterior.
+  { id: 'escapula-crestas', position: [0.098, 1.331, -0.0565] },
+  { id: 'escapula-crestas', position: [0.093, 1.311, -0.0575] },
+  { id: 'escapula-crestas', position: [0.088, 1.29, -0.0605] },
   { id: 'escapula-borde-lateral', position: [0.115, 1.297, -0.051] },
   { id: 'escapula-angulo-inferior', position: [0.081, 1.243, -0.06] },
 ]
@@ -102,10 +109,67 @@ const PUNTOS_COXAL: Hotspot[] = [
   { id: 'coxal-acetabulo', position: [-0.006, -0.029, 0.022] },
   { id: 'coxal-agujero-obturador', position: [-0.025, -0.071, 0.03] },
   { id: 'coxal-rama-isquiopubica', position: [-0.031, -0.1, 0.032] },
+  { id: 'coxal-rama-superior', position: [-0.029, -0.046, 0.055] },
+  { id: 'coxal-cresta-pubica', position: [-0.054, -0.062, 0.073] },
+  { id: 'coxal-linea-terminal', position: [-0.012, -0.013, 0.01] },
   { id: 'coxal-fosa-iliaca', position: [0.047, 0.066, 0] },
   { id: 'coxal-superficie-auricular', position: [-0.027, 0.03, -0.047] },
 ]
-const ids = (points: Hotspot[]) => points.map((p) => p.id)
+const PUNTOS_VERTEBRA: Record<string, Hotspot[]> = {
+  atlas: [
+    { id: 'atlas-tuberculo-anterior', position: [0, 1.559, 0] },
+    { id: 'atlas-arco-anterior', position: [-0.007, 1.557, -0.001] },
+    { id: 'atlas-tuberculo-posterior', position: [0, 1.566, -0.039] },
+    { id: 'atlas-arco-posterior', position: [-0.008, 1.562, -0.034] },
+    { id: 'atlas-transverso', position: [-0.034, 1.56, -0.016] },
+    { id: 'atlas-fosita', position: [-0.015, 1.5615, -0.017] },
+    { id: 'atlas-agujero', position: [0, 1.56, -0.018] },
+  ],
+  axis: [
+    { id: 'axis-cuerpo', position: [0.021, 1.541, -0.009] },
+    { id: 'axis-espinosa', position: [0.004, 1.542, -0.045] },
+    { id: 'axis-transversa', position: [-0.021, 1.542, -0.012] },
+    { id: 'axis-articular', position: [-0.007, 1.55, -0.02] },
+    { id: 'axis-agujero', position: [0, 1.548, -0.017] },
+    { id: 'axis-odontoides', position: [0, 1.561, -0.005] },
+  ],
+  cervical: [
+    { id: 'cerv-cuerpo', position: [0, 1.508, -0.001] },
+    { id: 'cerv-espinosa', position: [0, 1.502, -0.033] },
+    { id: 'cerv-transversa', position: [-0.02, 1.506, -0.006] },
+    { id: 'cerv-articular', position: [-0.007, 1.512, -0.014] },
+    { id: 'cerv-agujero', position: [0, 1.507, -0.01] },
+    { id: 'cerv-lamina', position: [-0.002, 1.506, -0.02] },
+  ],
+  c7: [
+    { id: 'c7-cuerpo', position: [0, 1.456, -0.017] },
+    { id: 'c7-espinosa', position: [0, 1.432, -0.059] },
+    { id: 'c7-transversa', position: [-0.021, 1.451, -0.022] },
+    { id: 'c7-articular', position: [-0.008, 1.455, -0.033] },
+  ],
+  toracica: [
+    { id: 'tor-cuerpo', position: [0, 1.306, -0.042] },
+    { id: 'tor-espinosa', position: [0, 1.285, -0.097] },
+    { id: 'tor-transversa', position: [-0.024, 1.305, -0.076] },
+    { id: 'tor-articular', position: [-0.008, 1.31, -0.064] },
+    { id: 'tor-agujero', position: [0, 1.3015, -0.056] },
+  ],
+  lumbar: [
+    { id: 'lum-cuerpo', position: [0, 1.066, -0.015] },
+    { id: 'lum-espinosa', position: [0, 1.059, -0.075] },
+    { id: 'lum-transversa', position: [-0.04, 1.058, -0.037] },
+    { id: 'lum-articular', position: [-0.009, 1.072, -0.042] },
+    { id: 'lum-agujero', position: [0, 1.0605, -0.033] },
+  ],
+}
+const PUNTOS_CLAVICULA: Hotspot[] = [
+  { id: 'clavicula-esternal', position: [0.031, 0.064, 0.071] },
+  { id: 'clavicula-acromial', position: [0.162, 0.076, 0.016] },
+  { id: 'clavicula-surco', position: [0.092, 0.062, 0.057] },
+]
+const ids = (points: Hotspot[]) => [...new Set(points.map((p) => p.id))]
+
+const VISTAS_VERTEBRA: ModelView[] = [{ id: 'superior', label: 'Superior', dir: [0, 1, 0.02] }, LATERAL, POSTERIOR, ANTERIOR]
 
 export const models: Record<string, ModelDef> = {
   // ───────────── Cráneo ─────────────
@@ -127,24 +191,28 @@ export const models: Record<string, ModelDef> = {
   }),
 
   // ───────────── Cintura escapular ─────────────
-  hombro: model('hombro', 'Cintura escapular', 'hombro', ['clavicula', 'escapula'], {
+  hombro: model('hombro', 'Cintura escapular', 'hombro', ['clavicula', 'escapula', ...ids(PUNTOS_CLAVICULA)], {
     resolve: wholeBones,
-    views: [ANTERIOR, POSTERIOR, { id: 'superior', label: 'Superior', dir: [0, 0.98, 0.2] }],
+    hotspots: PUNTOS_CLAVICULA,
+    views: [ANTERIOR, POSTERIOR, { id: 'superior', label: 'Superior', dir: [0, 0.98, 0.2] }, { id: 'inferior', label: 'Inferior', dir: [0, -0.98, 0.2] }],
   }),
   escapula: model('escapula', 'Escápula', 'esqueleto-escapula', [...ESCAPULA, ...ids(PUNTOS_ESCAPULA)], {
     hotspots: PUNTOS_ESCAPULA,
     views: [
-      { ...POSTERIOR, hide: ['escapula-subescapular'] },
+      { ...POSTERIOR, hide: ['escapula-subescapular', 'escapula-crestas'] },
       { ...ANTERIOR, hide: ['escapula-supraespinosa', 'escapula-infraespinosa', 'escapula-espina'] },
-      { ...LATERAL, hide: ['escapula-subescapular', 'escapula-borde-medial'] },
+      { ...LATERAL, hide: ['escapula-subescapular', 'escapula-crestas', 'escapula-borde-medial'] },
     ],
   }),
   'articulacion-hombro': model('articulacion-hombro', 'Articulación del hombro', 'hombro-anterior', [], { views: [ANTERIOR, POSTERIOR, LATERAL] }),
   'hombro-torax': model('hombro-torax', 'Hombro y tórax', 'hombro-vista-anterior', [], { views: [ANTERIOR, POSTERIOR] }),
 
   // ───────────── Miembro superior ─────────────
-  humero: model('humero', 'Húmero', 'humero-anterior', HUMERO, { views: [ANTERIOR, POSTERIOR, LATERAL, MEDIAL] }),
-  antebrazo: model('antebrazo', 'Radio y cúbito', 'radio-y-cubito-anterior', [...RADIO, ...CUBITO], {
+  humero: model('humero', 'Húmero', 'humero-anterior', [...HUMERO, 'humero-fosa-coronoidea'], {
+    hotspots: [{ id: 'humero-fosa-coronoidea', position: [-0.009, -0.111, -0.003] }],
+    views: [ANTERIOR, POSTERIOR, LATERAL, MEDIAL] }),
+  antebrazo: model('antebrazo', 'Radio y cúbito', 'radio-y-cubito-anterior', [...RADIO, 'radio-fovea', ...CUBITO], {
+    hotspots: [{ id: 'radio-fovea', position: [0.003, 0.108, -0.002] }],
     views: [ANTERIOR, POSTERIOR, { id: 'proximal', label: 'Articular proximal', dir: [0, 0.94, 0.34] }, { id: 'distal', label: 'Articular distal', dir: [0, -0.94, 0.34] }],
   }),
   // El mismo archivo dos veces: por zonas para estudiar, y con cada hueso entero para las preguntas que lo piden completo.
@@ -166,7 +234,7 @@ export const models: Record<string, ModelDef> = {
   coxal: model('coxal', 'Hueso coxal', 'hueso-coxal-lateral', ['ilion', 'isquion', 'pubis', ...ids(PUNTOS_COXAL)], {
     hotspots: PUNTOS_COXAL,
     views: [
-      { ...LATERAL, hide: ['coxal-fosa-iliaca', 'coxal-superficie-auricular'] },
+      { ...LATERAL, hide: ['coxal-fosa-iliaca', 'coxal-superficie-auricular', 'coxal-linea-terminal'] },
       { ...MEDIAL, hide: ['coxal-acetabulo'] },
       { ...ANTERIOR, hide: ['coxal-superficie-auricular'] },
       { ...POSTERIOR, hide: ['coxal-fosa-iliaca'] },
@@ -176,7 +244,9 @@ export const models: Record<string, ModelDef> = {
   'cadera-pierna': model('cadera-pierna', 'Pelvis y pierna', 'cadera-articulacion', [], { views: [ANTERIOR, POSTERIOR, LATERAL] }),
 
   // ───────────── Miembro inferior ─────────────
-  femur: model('femur', 'Fémur', 'femur-anterior', FEMUR, { views: [ANTERIOR, POSTERIOR, LATERAL, MEDIAL] }),
+  femur: model('femur', 'Fémur', 'femur-anterior', [...FEMUR, 'femur-poplitea'], {
+    hotspots: [{ id: 'femur-poplitea', position: [-0.005, -0.142, -0.013] }],
+    views: [ANTERIOR, POSTERIOR, LATERAL, MEDIAL] }),
   tibia: model('tibia', 'Tibia', 'tibia-cara-anterior', TIBIA, { views: [ANTERIOR, { ...MEDIAL, label: 'Cara interna' }, POSTERIOR, LATERAL, SUPERIOR] }),
   perone: model('perone', 'Peroné', 'perone-anterior', PERONE, { views: [ANTERIOR, LATERAL, MEDIAL, POSTERIOR] }),
   'pierna-huesos': model('pierna-huesos', 'Fémur, tibia y peroné', 'femur-tibia-y-perone-anterior', [], { views: [ANTERIOR, POSTERIOR, LATERAL] }),
@@ -191,6 +261,22 @@ export const models: Record<string, ModelDef> = {
   ]),
 
   // ───────────── Tronco ─────────────
+  // Vértebras sueltas: el archivo de la columna, dejando una sola pieza.
+  ...Object.fromEntries(
+    (
+      [
+        ['atlas', 'Atlas (C1)', 'C01'],
+        ['axis', 'Axis (C2)', 'C02'],
+        ['cervical', 'Cervical típica (C4)', 'C04'],
+        ['c7', 'Prominente (C7)', 'C07'],
+        ['toracica', 'Torácica (T6)', 'T06'],
+        ['lumbar', 'Lumbar (L3)', 'L03'],
+      ] as const
+    ).map(([id, title, mesh]) => [
+      id,
+      model(id, title, 'esqueleto-columna', ids(PUNTOS_VERTEBRA[id]), { keep: (name) => name === mesh, hotspots: PUNTOS_VERTEBRA[id], views: VISTAS_VERTEBRA }),
+    ]),
+  ),
   columna: model('columna', 'Columna vertebral', 'esqueleto-columna', ['cervicales', 'toracicas', 'lumbares', 'sacro', 'coccix']),
   torax: model('torax', 'Tórax', 'esqueleto-torax', ['esternon-manubrio', 'esternon-cuerpo', 'xifoides', 'costillas-verdaderas', 'costillas-falsas', 'costillas-flotantes', 'cartilagos-costales']),
 }

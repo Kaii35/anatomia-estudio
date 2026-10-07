@@ -63,6 +63,7 @@ const ratioFor = (file) => (file.startsWith('craneo-') ? 0.35 : 0.5)
  * cartílagos articulares). Las claves son el nombre de la malla sin el lado.
  */
 const TINTES_PROPIOS = {
+  scapula_subscapular_fossa: '#e9a8a0', // malla que la app separa de las fosas posteriores
   sacrum_ala: '#5fc4bd',
   sacrum_promontory: '#e8925a',
   sacrum_superior_articular_process: '#8fb3dc',

@@ -62,7 +62,7 @@ export const regions: Region[] = [
     name: 'Columna y tórax',
     description: 'Vértebras, costillas y esternón.',
     color: '#d9b45f',
-    models: ['columna', 'torax'],
+    models: ['columna', 'atlas', 'axis', 'cervical', 'c7', 'toracica', 'lumbar', 'torax'],
   },
 ]
 

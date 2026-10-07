@@ -115,8 +115,12 @@ function RegionView({ region }: { region: Region }) {
   const card = useRef<HTMLDivElement>(null)
 
   const bone = boneById[boneId]
+  // Viaje de la cámara: al elegir una parte desde una etiqueta, la leyenda o la lista (no al tocarla en el modelo, que ya se está viendo).
+  const [fly, setFly] = useState<{ part: string; n: number } | null>(null)
+  const goTo = (part: string) => setFly((f) => ({ part, n: (f?.n ?? 0) + 1 }))
   const select = (next: Picked) => {
     setPick(next)
+    if (!next.mesh) goTo(next.part)
     const owner = partBone(next.part)
     if (owner) setBoneId(owner)
   }
@@ -161,6 +165,7 @@ function RegionView({ region }: { region: Region }) {
                 selected={pick?.mesh ? [] : pick ? [pick.part] : ownZones.length > 1 ? [] : partsOfBone(bone.id)}
                 hideOccludedCallouts
                 selectedMesh={pick?.mesh}
+                flyTo={fly}
                 onReady={onReady}
                 onMeshClick={(click) => click.partId && select({ part: click.partId, mesh: click.meshName })}
                 callouts={showLabels && labelParts.length ? labelParts : undefined}
@@ -196,7 +201,13 @@ function RegionView({ region }: { region: Region }) {
               <div className="flex flex-wrap gap-2">
                 {region.models.length > 1 &&
                   region.models.map((m) => (
-                    <button key={m} type="button" onClick={() => setModelId(m)} className={cn('btn-soft', m === modelId && 'border-(--c)!')}>
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => {
+                        setModelId(m)
+                        setFly(null)
+                      }} className={cn('btn-soft', m === modelId && 'border-(--c)!')}>
                       {models[m].title}
                     </button>
                   ))}
@@ -247,6 +258,7 @@ function RegionView({ region }: { region: Region }) {
                         onClick={() => {
                           setBoneId(b.id)
                           setPick(null)
+                          goTo(b.id)
                         }}
                         className={cn(
                           'cursor-pointer rounded-lg border px-3 py-2 text-sm font-medium transition sm:px-2.5 sm:py-1.5',

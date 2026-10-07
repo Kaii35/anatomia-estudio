@@ -1,7 +1,7 @@
 import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Bvh, OrbitControls, useGLTF } from '@react-three/drei'
-import { Box3, Color, type DirectionalLight, type Group, Mesh, Raycaster, MeshStandardMaterial, SphereGeometry, Vector3, type Material, type Object3D, type PerspectiveCamera } from 'three'
+import { Box3, BufferGeometry, Color, Quaternion, type DirectionalLight, type Group, Mesh, Raycaster, MeshStandardMaterial, SphereGeometry, Vector3, type Material, type Object3D, type PerspectiveCamera } from 'three'
 import { Palette, RotateCcw } from 'lucide-react'
 import { models, type ModelDef, type ModelView } from '../data/models'
 import { partBone, partName } from '../data/parts'
@@ -38,6 +38,8 @@ interface Props {
   view?: string
   /** Encuadra solo estas partes en vez del modelo entero. */
   fitParts?: string[]
+  /** Lleva la cámara, con una animación, hasta esta parte. `n` permite repetir el viaje a la misma parte. */
+  flyTo?: { part: string; n: number } | null
   /** Parte que debe verse al abrir: se elige la vista hacia la que mira (p. ej. la posterior para la fosa olecraniana). */
   focusPart?: string
   /** Con huesos pares, deja solo los de un lado (para aislar una extremidad). */
@@ -96,9 +98,55 @@ function meshesOf(root: Object3D): Mesh[] {
   return out
 }
 
+/**
+ * En los modelos, las fosas supraespinosa e infraespinosa son mallas que abarcan todo el
+ * grosor de la escápula, también su cara anterior. Esa cara es la fosa subescapular:
+ * aquí se separan en una malla propia los triángulos que miran hacia delante.
+ */
+function splitSubscapular(root: Object3D) {
+  root.updateMatrixWorld(true)
+  const a = new Vector3()
+  const b = new Vector3()
+  const c = new Vector3()
+  for (const mesh of meshesOf(root)) {
+    const side = mesh.name.match(/^scapula_([LR])_(?:infra|supra)spinous_fossa$/)?.[1]
+    const index = mesh.geometry.index
+    const position = mesh.geometry.attributes.position
+    if (!side || !index) continue
+    const front: number[] = []
+    const back: number[] = []
+    for (let i = 0; i < index.count; i += 3) {
+      const [i0, i1, i2] = [index.getX(i), index.getX(i + 1), index.getX(i + 2)]
+      a.fromBufferAttribute(position, i0).applyMatrix4(mesh.matrixWorld)
+      b.fromBufferAttribute(position, i1).applyMatrix4(mesh.matrixWorld)
+      c.fromBufferAttribute(position, i2).applyMatrix4(mesh.matrixWorld)
+      // Normal geométrica de la cara: hacia delante (+z) es la cara costal.
+      const facesFront = b.sub(a).cross(c.sub(a)).normalize().z > 0.25
+      ;(facesFront ? front : back).push(i0, i1, i2)
+    }
+    if (!front.length || !back.length) continue
+    const piece = (indices: number[]) => {
+      const geometry = new BufferGeometry()
+      for (const [name, attribute] of Object.entries(mesh.geometry.attributes)) geometry.setAttribute(name, attribute)
+      geometry.setIndex(indices)
+      return geometry
+    }
+    const fossa = new Mesh(piece(front), mesh.material)
+    fossa.name = `scapula_${side}_subscapular_fossa`
+    fossa.userData.split = true
+    fossa.position.copy(mesh.position)
+    fossa.quaternion.copy(mesh.quaternion)
+    fossa.scale.copy(mesh.scale)
+    mesh.parent?.add(fossa)
+    mesh.geometry = piece(back)
+  }
+}
+
 /** Asigna a cada malla su parte y le da materiales propios para poder colorearla por separado. */
 function prepare(root: Object3D, def: ModelDef, only?: string[], half?: boolean): Object3D {
   const match = buildMatcher(def)
+  if (def.keep) for (const mesh of meshesOf(root)) if (!def.keep(mesh.name)) mesh.removeFromParent()
+  splitSubscapular(root)
   for (const mesh of meshesOf(root)) {
     if (mesh.userData.partId === undefined) {
       let id: string | null = null
@@ -110,7 +158,8 @@ function prepare(root: Object3D, def: ModelDef, only?: string[], half?: boolean)
     mesh.userData.base = own.map((m) => ((m as MeshStandardMaterial).color ?? new Color('#ffffff')).clone())
     // Las cavidades (órbitas, fosa nasal) conservan su color oscuro también en modo hueso.
     mesh.userData.fixed = own.some((m) => m.name === 'cavity')
-    mesh.userData.tint = own.some((m) => m.name.startsWith('tint_')) ? undefined : TINTS[zoneKey(mesh.name)]
+    // Una malla separada aquí hereda el material de su origen: su color sale siempre de la tabla.
+    mesh.userData.tint = !mesh.userData.split && own.some((m) => m.name.startsWith('tint_')) ? undefined : TINTS[zoneKey(mesh.name)]
   }
   if (def.hotspots?.length) {
     const radius = new Box3().setFromObject(root).getSize(new Vector3()).length() * 0.011
@@ -396,32 +445,16 @@ interface SourceProps extends Omit<PickableProps, 'object'> {
   half?: boolean
 }
 
-function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, onBestView, ...rest }: SourceProps & { wide: boolean; compact: boolean; view?: ModelView; focusPart?: string; fitParts?: string[]; onBestView: (id: string) => void }) {
+function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, flyTo, onFlyEnd, onBestView, ...rest }: SourceProps & { wide: boolean; compact: boolean; view?: ModelView; focusPart?: string; fitParts?: string[]; flyTo?: Props['flyTo']; onFlyEnd: () => void; onBestView: (id: string) => void }) {
   const { scene } = useGLTF(def.url)
   const object = useMemo(() => prepare(scene.clone(true), def, only, half), [scene, def, only, half])
 
   // Vista desde la que mejor se ve la parte de interés: aquella hacia la que apunta, de media, su superficie.
   useEffect(() => {
     if (!focusPart || !def.views || def.views.length < 2) return
-    object.updateWorldMatrix(true, true)
-    const facing = new Vector3()
-    const n = new Vector3()
-    let samples = 0
-    for (const mesh of meshesOf(object)) {
-      if (mesh.userData.partId !== focusPart) continue
-      if (mesh.userData.point) {
-        facing.add(mesh.getWorldPosition(n).sub(centerOf(object)).normalize().multiplyScalar(50))
-        samples += 50
-        continue
-      }
-      const normal = mesh.geometry.attributes.normal
-      if (!normal) continue
-      const step = Math.max(1, Math.floor(normal.count / 1500))
-      for (let i = 0; i < normal.count; i += step, samples++) facing.add(n.fromBufferAttribute(normal, i).transformDirection(mesh.matrixWorld))
-    }
+    const facing = facingOf(object, meshesOf(object).filter((m) => m.userData.partId === focusPart))
     // Una pieza cerrada (un hueso entero) mira a todos lados por igual: se deja la vista inicial.
-    if (!samples || facing.length() / samples < 0.3) return
-    facing.normalize()
+    if (!facing) return
     const best = def.views.map((v) => ({ id: v.id, score: new Vector3(...v.dir).normalize().dot(facing) })).sort((a, b) => b.score - a.score)[0]
     onBestView(best.id)
   }, [object, focusPart, def, onBestView])
@@ -430,7 +463,8 @@ function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, o
   // aún en curso se cortaba al primer arrastre y el modelo daba un salto.
   const group = useRef<Group>(null)
   const camera = useThree((s) => s.camera) as PerspectiveCamera
-  const controls = useThree((s) => s.controls) as unknown as { target: Vector3; update: () => void } | null
+  const controls = useThree((s) => s.controls) as unknown as Controls | null
+  const fitAll = useRef(1)
   useLayoutEffect(() => {
     if (!group.current) return
     group.current.updateWorldMatrix(true, true)
@@ -451,6 +485,8 @@ function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, o
     const fit = Math.max(roomY * extent(size, up), (roomX * extent(size, right)) / camera.aspect) / (2 * tan) + extent(size, toCamera) / 2
     const target = view?.target ? new Vector3(...view.target) : box.getCenter(new Vector3())
     const distance = view?.target && view.distance ? view.distance * (wide ? 1.6 : 1) : fit
+    fitAll.current = fit
+    flight.current = null
     camera.position.copy(target).addScaledVector(toCamera, distance)
     camera.near = distance / 100
     camera.far = distance * 100 + fit
@@ -463,6 +499,84 @@ function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, o
     invalidate()
   }, [object, wide, compact, view, fitParts, camera, controls])
 
+  // ── Viaje de la cámara hasta una parte ──
+  const flight = useRef<Flight | null>(null)
+  useEffect(() => {
+    if (!flyTo || !controls) return
+    object.updateWorldMatrix(true, true)
+    // La parte pedida o, si es un hueso que el modelo trae por zonas, todas sus zonas.
+    let meshes = meshesOf(object).filter((m) => m.userData.partId === flyTo.part)
+    if (!meshes.length) meshes = meshesOf(object).filter((m) => !m.userData.point && partBone(m.userData.partId ?? '') === flyTo.part)
+    if (!meshes.length) return
+    // De un hueso par se va al ejemplar más cercano a la cámara.
+    const mid = centerOf(object).x
+    const nearest = meshes.map((m) => ({ m, d: centerOf(m).distanceTo(camera.position) })).sort((a, b) => a.d - b.d)[0].m
+    const side = Math.sign(centerOf(nearest).x - mid)
+    const sameSide = meshes.filter((m) => Math.sign(centerOf(m).x - mid) === side)
+    if (sameSide.length) meshes = sameSide
+
+    const box = new Box3()
+    for (const m of meshes) box.expandByObject(m)
+    const toTarget = box.getCenter(new Vector3())
+    const fromTarget = controls.target.clone()
+    const fromDir = camera.position.clone().sub(fromTarget)
+    const fromDistance = fromDir.length()
+    fromDir.normalize()
+    // Se gira solo si hace falta: si la parte ya se ve desde donde está la cámara, basta con acercarse.
+    const facing = facingOf(object, meshes)
+    const ray = new Raycaster(camera.position, toTarget.clone().sub(camera.position).normalize())
+    const first = ray.intersectObjects(meshesOf(object), false)[0]
+    const inSight = !!first && meshes.includes(first.object as Mesh)
+    const sideways = !!facing && facing.dot(fromDir) < 0.35
+    let toDir = fromDir.clone()
+    if (!inSight || sideways) {
+      if (facing) toDir = facing
+      else {
+        // Pieza cerrada y tapada (un hueso entre otros): se prueba desde las vistas del modelo y los
+        // ejes, empezando por la más parecida a la actual, hasta dar con una que la vea despejada.
+        const all = meshesOf(object)
+        const far = fitAll.current * 3
+        const candidates = [...(def.views ?? []).map((v) => v.dir), [0, 0, 1], [0, 0, -1], [1, 0, 0], [-1, 0, 0], [0, 1, 0.05], [0, -1, 0.05]]
+          .map((d) => new Vector3(...(d as [number, number, number])).normalize())
+          .sort((a, b) => b.dot(fromDir) - a.dot(fromDir))
+        const clear = candidates.find((d) => {
+          ray.set(toTarget.clone().addScaledVector(d, far), d.clone().negate())
+          const hit = ray.intersectObjects(all, false)[0]
+          return !!hit && meshes.includes(hit.object as Mesh)
+        })
+        if (clear) toDir = clear
+      }
+    }
+    if (Math.abs(toDir.y) > 0.97) toDir.setZ(toDir.z + 0.08).normalize() // evita mirar justo desde el eje vertical
+    // Acercamiento moderado: la parte ocupa buena parte del encuadre sin perder el contexto.
+    const radius = Math.max(box.getSize(new Vector3()).length() / 2, fitAll.current * 0.02)
+    const tan = Math.tan((camera.fov * Math.PI) / 360)
+    const toDistance = Math.min(fitAll.current, Math.max((radius / tan) * (wide ? 3.2 : 2.2), fitAll.current * 0.4))
+    flight.current = { t: 0, fromTarget, toTarget, fromDir, turn: new Quaternion().setFromUnitVectors(fromDir, toDir), fromDistance, toDistance }
+    invalidate()
+    // Si el usuario empieza a mover el modelo, manda él: se cancela el viaje.
+    const cancel = () => (flight.current = null)
+    controls.addEventListener('start', cancel)
+    return () => controls.removeEventListener('start', cancel)
+  }, [flyTo, object, def, camera, controls, wide])
+
+  useFrame((_, delta) => {
+    const f = flight.current
+    if (!f || !controls) return
+    f.t = Math.min(1, f.t + Math.min(delta, 0.05) / 0.85)
+    const k = f.t < 0.5 ? 4 * f.t ** 3 : 1 - (-2 * f.t + 2) ** 3 / 2 // suave al salir y al llegar
+    const target = f.fromTarget.clone().lerp(f.toTarget, k)
+    const dir = f.fromDir.clone().applyQuaternion(new Quaternion().slerp(f.turn, k))
+    camera.position.copy(target).addScaledVector(dir, f.fromDistance + (f.toDistance - f.fromDistance) * k)
+    camera.lookAt(target)
+    controls.target.copy(target)
+    controls.update()
+    if (f.t >= 1) {
+      flight.current = null
+      onFlyEnd()
+    } else invalidate()
+  })
+
   return (
     <group ref={group} rotation={def.rotation ?? [0, 0, 0]}>
       <Bvh firstHitOnly>
@@ -470,6 +584,69 @@ function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, o
       </Bvh>
     </group>
   )
+}
+
+interface Controls {
+  target: Vector3
+  update: () => void
+  addEventListener: (type: 'start', listener: () => void) => void
+  removeEventListener: (type: 'start', listener: () => void) => void
+}
+
+interface Flight {
+  t: number
+  fromTarget: Vector3
+  toTarget: Vector3
+  fromDir: Vector3
+  turn: Quaternion
+  fromDistance: number
+  toDistance: number
+}
+
+/**
+ * Dirección hacia la que mira, de media, la superficie de unas mallas. Un punto usa la
+ * normal del hueso justo debajo de él. Devuelve null si la pieza es cerrada y mira a
+ * todos lados por igual (un hueso entero).
+ */
+function facingOf(root: Object3D, meshes: Mesh[]): Vector3 | null {
+  root.updateWorldMatrix(true, true)
+  const facing = new Vector3()
+  const n = new Vector3()
+  const p = new Vector3()
+  let samples = 0
+  const solid = meshesOf(root).filter((m) => !m.userData.point)
+  for (const mesh of meshes) {
+    if (mesh.userData.point) {
+      const at = mesh.getWorldPosition(new Vector3())
+      let best = Infinity
+      const normalAt = new Vector3()
+      for (const s of solid) {
+        const position = s.geometry.attributes.position
+        const normal = s.geometry.attributes.normal
+        if (!normal) continue
+        const step = Math.max(1, Math.floor(position.count / 6000))
+        for (let i = 0; i < position.count; i += step) {
+          const d = p.fromBufferAttribute(position, i).applyMatrix4(s.matrixWorld).distanceToSquared(at)
+          if (d < best) {
+            best = d
+            normalAt.fromBufferAttribute(normal, i).transformDirection(s.matrixWorld)
+          }
+        }
+      }
+      facing.add(normalAt.multiplyScalar(200))
+      samples += 200
+      continue
+    }
+    const normal = mesh.geometry.attributes.normal
+    const index = mesh.geometry.index
+    if (!normal) continue
+    // Se recorren los vértices que la malla usa de verdad (una zona separada comparte atributos con su origen).
+    const count = index ? index.count : normal.count
+    const step = Math.max(1, Math.floor(count / 1500))
+    for (let i = 0; i < count; i += step, samples++) facing.add(n.fromBufferAttribute(normal, index ? index.getX(i) : i).transformDirection(mesh.matrixWorld))
+  }
+  if (!samples || facing.length() / samples < 0.3) return null
+  return facing.normalize()
 }
 
 /** Luz que acompaña a la cámara: ilumina lo que se mira también desde abajo, detrás o dentro de un corte. */
@@ -499,7 +676,7 @@ class LoadBoundary extends Component<{ children: ReactNode }, { failed: boolean 
   }
 }
 
-export function ModelViewer({ model, labels = true, className, onPick, onReady, only, half, view: initialView, focusPart, fitParts, callouts, renderCallout, activeCallout, hideOccludedCallouts, ...rest }: Props) {
+export function ModelViewer({ model, labels = true, className, onPick, onReady, only, half, view: initialView, focusPart, fitParts, flyTo, callouts, renderCallout, activeCallout, hideOccludedCallouts, ...rest }: Props) {
   const def = typeof model === 'string' ? models[model] : model
   const [hovered, setHovered] = useState<string | null>(null)
   const [resets, setResets] = useState(0)
@@ -536,6 +713,9 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
   const calloutKey = callouts?.join('|')
   const stableOnly = useMemo(() => only, [onlyKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const stableCallouts = useMemo(() => callouts, [calloutKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Al terminar un viaje se recalculan las etiquetas visibles desde el nuevo punto de vista.
+  const [flights, setFlights] = useState(0)
+  const onFlyEnd = useCallback(() => setFlights((n) => n + 1), [])
   const stableFit = useMemo(() => fitParts, [fitParts?.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sourceKey = `${def.url}:${onlyKey ?? ''}:${half ? 1 : 0}`
@@ -566,7 +746,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
     setHovered,
     onTap: setTapped,
     children: stableCallouts
-      ? (object) => <CalloutLines object={object} parts={stableCallouts} viewKey={`${activeView?.id}:${resets}`} hideOccluded={hideOccludedCallouts} hidden={activeView?.hide} lines={lines} dots={dots} badges={badges} boxes={boxes} onLayout={setLayout} />
+      ? (object) => <CalloutLines object={object} parts={stableCallouts} viewKey={`${activeView?.id}:${resets}:${flights}`} hideOccluded={hideOccludedCallouts} hidden={activeView?.hide} lines={lines} dots={dots} badges={badges} boxes={boxes} onLayout={setLayout} />
       : undefined,
   }
 
@@ -581,7 +761,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
           <directionalLight position={[4, 6, 8]} intensity={0.9} />
           <HeadLight />
           <Suspense fallback={null}>
-            <GlbModel {...shared} wide={!!callouts && !compact} compact={compact} view={activeView} focusPart={focusPart} fitParts={stableFit} onBestView={onBestView} />
+            <GlbModel {...shared} wide={!!callouts && !compact} compact={compact} view={activeView} focusPart={focusPart} fitParts={stableFit} flyTo={flyTo} onFlyEnd={onFlyEnd} onBestView={onBestView} />
           </Suspense>
           <OrbitControls makeDefault enableDamping />
         </Canvas>

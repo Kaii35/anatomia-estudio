@@ -768,7 +768,7 @@ const pie: Bone[] = [
     group: 'Tarso',
     kind: 'corto',
     paired: true,
-    aliases: ['escafoides tarsiano', 'escafoides del pie', 'escafoides del tarso'],
+    aliases: ['escafoides', 'escafoides tarsiano', 'escafoides del pie', 'escafoides del tarso'],
     mesh: ['navicular'],
     summary: 'Hueso en forma de barco situado en el lado medial, entre la cabeza del astrágalo y los tres cuneiformes.',
     landmarks: [l('Tuberosidad del navicular', 'Inserción del tibial posterior.')],

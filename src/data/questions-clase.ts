@@ -35,6 +35,7 @@ const laminas: Question[] = [
     'escapula-angulo-superior',
     'escapula-borde-medial',
     'escapula-subescapular',
+    'escapula-crestas',
     'escapula-angulo-inferior',
     'escapula-coracoides',
     'escapula-acromion',
@@ -56,6 +57,19 @@ const laminas: Question[] = [
     'escapula-borde-lateral',
   ]),
 
+  lamina('clavicula', 'cintura-escapular', 'hombro', 'anterior', 'Clavícula: nombra sus dos extremos y el hueso.', ['clavicula-esternal', 'clavicula-acromial', 'clavicula', 'escapula'], {
+    half: true,
+    explanation: 'El extremo esternal se une al manubrio del esternón y el acromial, al acromion de la escápula. El surco subclavio queda en la cara inferior.',
+  }),
+  lamina('escapula-completa', 'cintura-escapular', 'escapula', 'anterior', 'Escápula: nombra sus tres ángulos y sus tres bordes.', [
+    'escapula-angulo-superior',
+    'escapula-angulo-inferior',
+    'escapula-angulo-lateral',
+    'escapula-borde-superior',
+    'escapula-borde-medial',
+    'escapula-borde-lateral',
+  ]),
+
   // ── Húmero ──
   lamina('humero-anterior', 'miembro-superior', 'humero', 'anterior', 'Húmero, cara anterior: pon el nombre a cada parte.', h('head greater_tubercle lesser_tubercle surgical_neck shaft lateral_epicondyle medial_epicondyle capitulum trochlea')),
   lamina('humero-posterior', 'miembro-superior', 'humero', 'posterior', 'Húmero, cara posterior: pon el nombre a cada parte.', h('head greater_tubercle surgical_neck shaft olecranon_fossa lateral_epicondyle medial_epicondyle trochlea')),
@@ -63,14 +77,14 @@ const laminas: Question[] = [
     zoom: true,
     explanation: 'Se distinguen dos tuberosidades: una mayor o troquíter y otra menor o troquín, separadas por el surco intertubercular.',
   }),
-  lamina('humero-distal', 'miembro-superior', 'humero', 'anterior', 'Epífisis distal del húmero: nombra sus partes.', h('lateral_epicondyle capitulum trochlea medial_epicondyle supracondylar_ridges'), {
+  lamina('humero-distal', 'miembro-superior', 'humero', 'anterior', 'Epífisis distal del húmero: nombra sus partes.', [...h('lateral_epicondyle capitulum trochlea medial_epicondyle supracondylar_ridges'), 'humero-fosa-coronoidea'], {
     zoom: true,
     explanation: 'De fuera adentro: epicóndilo, cóndilo (articula con el radio), tróclea (articula con el cúbito) y epitróclea.',
   }),
 
   // ── Radio y cúbito ──
   lamina('antebrazo-anterior', 'miembro-superior', 'antebrazo', 'anterior', 'Radio y cúbito: pon el nombre a cada parte.', [...r('head shaft styloid'), ...u('olecranon radial_notch shaft head styloid')]),
-  lamina('radio', 'miembro-superior', 'antebrazo', 'anterior', 'Partes del radio: nómbralas.', r('head neck tuberosity shaft distal_end styloid'), {
+  lamina('radio', 'miembro-superior', 'antebrazo', 'anterior', 'Partes del radio: nómbralas.', r('head articular_circumference neck tuberosity shaft interosseous_border styloid'), {
     explanation: 'En proximal presenta cabeza, cuello y tuberosidad radial; en distal, escotadura cubital, apófisis estiloides y superficie articular carpiana.',
   }),
   lamina('cubito', 'miembro-superior', 'antebrazo', 'anterior', 'Partes del cúbito: nómbralas.', u('olecranon trochlear_notch coronoid tuberosity shaft head styloid'), {
@@ -102,12 +116,15 @@ const laminas: Question[] = [
     'coxal-rama-isquiopubica',
   ]),
   lamina('coxal-interna', 'pelvis', 'coxal', 'medial', 'Hueso coxal, cara interna: nombra lo señalado.', ['coxal-fosa-iliaca', 'coxal-superficie-auricular', 'coxal-agujero-obturador', 'ilion', 'isquion', 'pubis']),
+  lamina('coxal-anterior', 'pelvis', 'coxal', 'anterior', 'Hueso coxal, vista anterior: nombra lo señalado.', ['coxal-cresta-iliaca', 'coxal-eias', 'coxal-eiai', 'coxal-acetabulo', 'coxal-rama-superior', 'coxal-cresta-pubica', 'coxal-agujero-obturador', 'coxal-rama-isquiopubica'], {
+    explanation: 'En la diapositiva de clase: cresta ilíaca, espinas ilíacas anterosuperior y anteroinferior, acetábulo o cavidad cotiloidea, rama superior, rama inferior y agujero obturado.',
+  }),
   lamina('sacro-anterior', 'pelvis', 'pelvis', 'anterior', 'Sacro, vista anterior: pon el nombre a cada parte.', [...s('promontory ala anterior_foramina transverse_lines'), 'coccix'], { only: SOLO_SACRO }),
   lamina('sacro-posterior', 'pelvis', 'pelvis', 'posterior', 'Sacro, vista posterior: pon el nombre a cada parte.', s('superior_articular_process sacral_canal median_crest lateral_crests posterior_foramina sacral_hiatus'), { only: SOLO_SACRO }),
 
   // ── Fémur ──
   lamina('femur-anterior', 'miembro-inferior', 'femur', 'anterior', 'Fémur, vista anterior: pon el nombre a cada parte.', f('head neck greater_trochanter intertrochanteric_line shaft lateral_epicondyle medial_epicondyle patellar_surface')),
-  lamina('femur-posterior', 'miembro-inferior', 'femur', 'posterior', 'Fémur, vista posterior: pon el nombre a cada parte.', f('head greater_trochanter lesser_trochanter intertrochanteric_crest linea_aspera lateral_condyle medial_condyle intercondylar_fossa')),
+  lamina('femur-posterior', 'miembro-inferior', 'femur', 'posterior', 'Fémur, vista posterior: pon el nombre a cada parte.', [...f('head greater_trochanter lesser_trochanter intertrochanteric_crest gluteal_tuberosity linea_aspera supracondylar_lines lateral_condyle medial_condyle intercondylar_fossa'), 'femur-poplitea']),
   lamina('femur-proximal', 'miembro-inferior', 'femur', 'posterior', 'Epífisis proximal del fémur: nombra sus partes.', f('head fovea_capitis neck greater_trochanter lesser_trochanter intertrochanteric_crest gluteal_tuberosity'), {
     zoom: true,
     explanation: 'Cabeza, cuello, trocánter mayor y trocánter menor; por detrás los une la cresta intertrocantérica.',
@@ -124,6 +141,26 @@ const laminas: Question[] = [
     zoom: true,
     only: [...f('shaft supracondylar_lines adductor_tubercle medial_epicondyle lateral_epicondyle medial_condyle lateral_condyle intercondylar_fossa patellar_surface linea_aspera'), 'rotula', ...t('medial_condyle lateral_condyle glenoid_cavities intercondylar_eminence tibial_tuberosity fibular_facet anterior_crest medial_surface lateral_surface posterior_surface soleal_line'), ...p('head apex neck lateral_surface medial_surface interosseous_border anterior_border')],
     explanation: 'La forman los cóndilos del fémur, los cóndilos de la tibia, los cartílagos semilunares (meniscos) y la rótula. El peroné no participa.',
+  }),
+
+  // ── Vértebras ──
+  lamina('atlas', 'tronco', 'atlas', 'superior', 'Atlas (C1), vista superior: pon el nombre a cada parte.', ['atlas-arco-anterior', 'atlas-tuberculo-anterior', 'atlas-arco-posterior', 'atlas-tuberculo-posterior', 'atlas-transverso', 'atlas-fosita', 'atlas-agujero'], {
+    explanation: 'Vértebra atípica: no tiene cuerpo ni apófisis espinosa. Posee dos arcos, dos tubérculos, procesos transversos con su agujero y las fositas que reciben a los cóndilos occipitales.',
+  }),
+  lamina('axis', 'tronco', 'axis', 'lateral', 'Axis (C2): pon el nombre a cada parte.', ['axis-odontoides', 'axis-cuerpo', 'axis-articular', 'axis-transversa', 'axis-espinosa'], {
+    explanation: 'Vértebra atípica: se reconoce por la apófisis odontoides o diente.',
+  }),
+  lamina('cervical', 'tronco', 'cervical', 'superior', 'Vértebra cervical típica: pon el nombre a cada parte.', ['cerv-cuerpo', 'cerv-transversa', 'cerv-articular', 'cerv-lamina', 'cerv-espinosa', 'cerv-agujero'], {
+    explanation: 'De C3 a C6: agujero vertebral triangular, agujero transverso en la apófisis transversa y apófisis espinosa bífida.',
+  }),
+  lamina('c7', 'tronco', 'c7', 'superior', 'C7, vértebra prominente: nombra sus partes.', ['c7-cuerpo', 'c7-transversa', 'c7-articular', 'c7-espinosa'], {
+    explanation: 'Es una vértebra de transición: su apófisis espinosa es larga, no bífida, y se palpa en la nuca.',
+  }),
+  lamina('toracica', 'tronco', 'toracica', 'superior', 'Vértebra torácica: pon el nombre a cada parte.', ['tor-cuerpo', 'tor-transversa', 'tor-articular', 'tor-espinosa', 'tor-agujero'], {
+    explanation: 'Agujero vertebral circular y, en la apófisis transversa, una carilla articular para la costilla.',
+  }),
+  lamina('lumbar', 'tronco', 'lumbar', 'superior', 'Vértebra lumbar: pon el nombre a cada parte.', ['lum-cuerpo', 'lum-transversa', 'lum-articular', 'lum-espinosa', 'lum-agujero'], {
+    explanation: 'Cuerpo en forma de riñón, apófisis espinosa en forma de hacha y agujero vertebral triangular.',
   }),
 ]
 
@@ -244,4 +281,66 @@ const texto: Question[] = [
   { id: 'c:pie:cunas', type: 'choice', region: 'pie', prompt: '¿Cuántas cuñas (cuneiformes) tiene el tarso?', options: ['3', '2', '4', '5'], answer: 0, explanation: 'Medial, intermedia y lateral.' },
 ]
 
-export const preguntasDeClase: Question[] = [...laminas, ...texto]
+/** Contenido de las diapositivas que aún no tenía pregunta. */
+const mas: Question[] = [
+  { id: 'c:ce:angulos', type: 'list', region: 'cintura-escapular', prompt: 'Escribe los tres ángulos de la escápula.', items: [{ label: 'Superior', accept: ['ángulo superior'] }, { label: 'Inferior', accept: ['ángulo inferior'] }, { label: 'Lateral', accept: ['ángulo lateral', 'externo'] }] },
+  { id: 'c:ce:bordes', type: 'list', region: 'cintura-escapular', prompt: 'Escribe los tres bordes de la escápula.', items: [{ label: 'Superior', accept: ['borde superior'] }, { label: 'Medial', accept: ['borde medial', 'vertebral', 'interno'] }, { label: 'Lateral', accept: ['borde lateral', 'axilar', 'externo'] }] },
+  { id: 'c:ce:ubicacion', type: 'choice', region: 'cintura-escapular', prompt: '¿Entre qué costillas se encuentra la escápula?', options: ['Entre la segunda y la séptima', 'Entre la primera y la quinta', 'Entre la cuarta y la décima', 'Entre la tercera y la novena'], answer: 0 },
+  { id: 'c:ce:forma', type: 'choice', region: 'cintura-escapular', prompt: '¿Qué tipo de hueso es la escápula y qué forma tiene?', options: ['Plano y triangular', 'Largo y cilíndrico', 'Corto y cúbico', 'Irregular y en forma de anillo'], answer: 0, explanation: 'Se ubica en la parte posterior del tórax y conecta con el húmero y con la clavícula.' },
+  { id: 'c:ce:crestas', type: 'choice', region: 'cintura-escapular', prompt: '¿Cuántas crestas atraviesan la fosa subescapular y hacia dónde irradian?', options: ['Tres o cuatro, desde el cuello hacia el borde medial', 'Una, de arriba abajo', 'Dos, paralelas a la espina', 'Seis, desde el ángulo inferior'], answer: 0 },
+  { id: 'c:ce:manguito-musculos', type: 'list', region: 'cintura-escapular', prompt: 'Escribe los cuatro músculos del manguito rotador.', items: [{ label: 'Supraespinoso' }, { label: 'Infraespinoso' }, { label: 'Redondo menor' }, { label: 'Subescapular' }], explanation: 'Conectan la escápula con la cabeza del húmero y dan estabilidad al hombro.' },
+  { id: 'c:ce:articulaciones', type: 'list', region: 'cintura-escapular', prompt: 'Escribe las dos articulaciones de la clavícula.', items: [{ label: 'Esternoclavicular', accept: ['esternal', 'articulación esternal', 'esternocostoclavicular'] }, { label: 'Acromioclavicular', accept: ['acromial', 'articulación acromial'] }] },
+  { id: 'c:ce:infraespinoso', type: 'choice', region: 'cintura-escapular', prompt: '¿Qué músculo se inserta en la fosa infraespinosa?', options: ['El infraespinoso', 'El subescapular', 'El deltoides', 'El supraespinoso'], answer: 0 },
+
+  { id: 'c:ms:coronoidea', type: 'choice', region: 'miembro-superior', prompt: '¿Dónde está la fosa coronoidea del húmero?', options: ['En la cara anterior, sobre la tróclea', 'En la cara posterior, sobre la tróclea', 'Bajo la cabeza', 'En el epicóndilo lateral'], answer: 0, explanation: 'La fosa olecraniana es su equivalente en la cara posterior.' },
+  { id: 'c:ms:humero-mayor', type: 'choice', region: 'miembro-superior', prompt: '¿Cuál es el hueso más largo y voluminoso del miembro superior?', options: ['El húmero', 'El radio', 'El cúbito', 'La clavícula'], answer: 0 },
+  { id: 'c:ms:humero-articula', type: 'choice', region: 'miembro-superior', prompt: '¿Con qué se conecta el húmero en su extremo superior?', options: ['Con la escápula, en la articulación del hombro', 'Con la clavícula', 'Con el esternón', 'Con la primera costilla'], answer: 0, explanation: 'En su extremo inferior se conecta con el radio y el cúbito, en la articulación del codo.' },
+  { id: 'c:ms:cuello-quirurgico', type: 'choice', region: 'miembro-superior', prompt: '¿Dónde está el cuello quirúrgico del húmero?', options: ['Inmediatamente distal a las dos tuberosidades', 'Rodeando la cabeza', 'Sobre los epicóndilos', 'En la mitad de la diáfisis'], answer: 0 },
+  { id: 'c:ms:radio-lado', type: 'choice', region: 'miembro-superior', prompt: '¿En qué región del antebrazo se localiza el radio?', options: ['En la lateral', 'En la medial', 'En la posterior', 'En la anterior'], answer: 0 },
+  { id: 'c:ms:cubito-partes', type: 'multi', region: 'miembro-superior', prompt: '¿Qué presenta el cúbito en su epífisis proximal?', options: ['Olécranon', 'Apófisis coronoides', 'Apófisis estiloides', 'Cabeza'], answers: [0, 1], explanation: 'La cabeza y la apófisis estiloides están en distal.' },
+  { id: 'c:ms:triceps', type: 'write', region: 'miembro-superior', prompt: '¿Qué músculo extensor ocupa la cara posterior del brazo?', accept: ['tríceps braquial', 'tríceps'] },
+  { id: 'c:ms:musculocutaneo', type: 'choice', region: 'miembro-superior', prompt: '¿Qué nervio inerva los músculos flexores de la cara anterior del brazo?', options: ['El musculocutáneo', 'El radial', 'El cubital', 'El mediano'], answer: 0 },
+
+  { id: 'c:mano:metacarpiano-partes', type: 'list', region: 'mano', prompt: 'Escribe las tres partes de un metacarpiano, de proximal a distal.', items: [{ label: 'Base' }, { label: 'Cuerpo', accept: ['diáfisis'] }, { label: 'Cabeza' }] },
+  { id: 'c:mano:numeracion', type: 'choice', region: 'mano', prompt: '¿Por qué dedo empieza la numeración de los metacarpianos?', options: ['Por el pulgar', 'Por el meñique', 'Por el índice', 'Por el dedo medio'], answer: 0, explanation: 'Se enumeran de primero a quinto empezando por el pulgar.' },
+  { id: 'c:mano:mnemotecnia', type: 'choice', region: 'mano', prompt: '«Esa señorita pide pizza. Traigan, traigan, huele grandioso» sirve para recordar…', options: ['Los ocho huesos del carpo', 'Las falanges', 'Los metacarpianos', 'Los huesos del tarso'], answer: 0, explanation: 'Escafoides, semilunar, piramidal, pisiforme; trapecio, trapezoide, grande, ganchoso.' },
+  { id: 'c:mano:tunel', type: 'choice', region: 'mano', prompt: 'En el síndrome del túnel del carpo, ¿qué nervio queda comprimido?', options: ['El nervio mediano', 'El nervio cubital', 'El nervio radial', 'El nervio musculocutáneo'], answer: 0, explanation: 'Pasa junto a los tendones flexores bajo el ligamento transverso del carpo.' },
+  { id: 'c:mano:tunel-techo', type: 'write', region: 'mano', prompt: '¿Qué ligamento forma el techo del túnel del carpo?', accept: ['ligamento transverso del carpo', 'ligamento transverso', 'retináculo flexor'] },
+  { id: 'c:mano:guante', type: 'choice', region: 'mano', prompt: '¿Qué es el «guante epidérmico» en un cadáver?', options: ['La epidermis de la mano desprendida en bloque', 'Un vendaje para preservar huellas', 'La rigidez de los dedos', 'Una mancha de livideces'], answer: 0, explanation: 'Aparece con la putrefacción o la sumersión y permite obtener huellas dactilares para la identificación.' },
+
+  { id: 'c:pelvis:partes', type: 'list', region: 'pelvis', prompt: 'Escribe las tres partes que conforman el hueso coxal.', items: [{ label: 'Ilion', accept: ['ileon'] }, { label: 'Isquion' }, { label: 'Pubis' }] },
+  { id: 'c:pelvis:ramas', type: 'choice', region: 'pelvis', prompt: '¿Qué estructuras rodean el agujero obturador?', options: ['La rama superior del pubis y la rama isquiopúbica', 'La cresta ilíaca y la espina ciática', 'El sacro y el coxis', 'El acetábulo y la fosa ilíaca'], answer: 0 },
+  { id: 'c:pelvis:cotiloidea', type: 'write', region: 'pelvis', prompt: '¿Con qué otro nombre se conoce la cavidad cotiloidea?', accept: ['acetábulo'] },
+  { id: 'c:pelvis:interna', type: 'multi', region: 'pelvis', prompt: '¿Qué se observa en la superficie interna del coxal?', options: ['La fosa ilíaca', 'La superficie articular para el sacro', 'El acetábulo', 'La tuberosidad isquiática'], answers: [0, 1] },
+  { id: 'c:pelvis:terminal', type: 'choice', region: 'pelvis', prompt: '¿Qué marca la línea terminal de la pelvis?', options: ['El estrecho superior', 'El borde de la cresta ilíaca', 'El fondo del acetábulo', 'La unión del sacro con el coxis'], answer: 0 },
+  { id: 'c:pelvis:angulo', type: 'choice', region: 'pelvis', prompt: 'Según la diapositiva, ¿cuánto mide el ángulo sacrovertebral anterior?', options: ['118° en la mujer y 126° en el hombre', '90° en ambos', '126° en la mujer y 118° en el hombre', '140° en la mujer y 150° en el hombre'], answer: 0 },
+
+  { id: 'c:mi:poplitea', type: 'choice', region: 'miembro-inferior', prompt: '¿Dónde está la superficie poplítea del fémur?', options: ['En la cara posterior de la epífisis distal', 'En la cara anterior, sobre la rótula', 'Entre los dos trocánteres', 'En la cabeza'], answer: 0 },
+  { id: 'c:mi:femur-vistas', type: 'multi', region: 'miembro-inferior', prompt: '¿Cuáles de estas estructuras del fémur se ven en la vista posterior?', options: ['Cresta intertrocantérica', 'Línea áspera', 'Tuberosidad glútea', 'Línea intertrocantérica', 'Superficie rotular'], answers: [0, 1, 2], explanation: 'La línea intertrocantérica y la superficie rotular están en la cara anterior.' },
+  { id: 'c:mi:tibia-caras', type: 'list', region: 'miembro-inferior', prompt: 'Escribe las tres caras de la tibia que muestra la diapositiva.', items: [{ label: 'Anterior', accept: ['cara anterior'] }, { label: 'Interna', accept: ['cara interna', 'medial', 'cara medial'] }, { label: 'Posterior', accept: ['cara posterior'] }] },
+  { id: 'c:mi:tibia-facetas', type: 'list', region: 'miembro-inferior', prompt: 'En su extremo distal la tibia tiene dos facetas articulares. ¿Para qué huesos?', items: [{ label: 'Peroné', accept: ['fíbula'] }, { label: 'Astrágalo', accept: ['estrágalo', 'talus'] }] },
+  { id: 'c:mi:rodilla-capsula', type: 'multi', region: 'miembro-inferior', prompt: '¿Qué tiene la articulación de la rodilla?', options: ['Cápsula articular', 'Ligamentos extrasinoviales', 'Ligamentos intrasinoviales', 'Disco intervertebral'], answers: [0, 1, 2] },
+  { id: 'c:mi:menisco', type: 'write', region: 'miembro-inferior', prompt: '¿Con qué nombre se conocen los cartílagos semilunares de la rodilla?', accept: ['meniscos', 'menisco', 'cartílago meniscal'] },
+  { id: 'c:mi:perone-interoseo', type: 'choice', region: 'miembro-inferior', prompt: '¿Qué borde presenta la diáfisis del peroné hacia la tibia?', options: ['El borde interno o interóseo', 'El borde anterior', 'El borde posterior', 'El borde lateral'], answer: 0 },
+  { id: 'c:mi:tobillo-tipo', type: 'choice', region: 'miembro-inferior', prompt: '¿Qué tipo de articulación es el tobillo?', options: ['Sinovial', 'Fibrosa', 'Cartilaginosa', 'Sutura'], answer: 0 },
+
+  { id: 'c:pie:tarso-lista', type: 'list', region: 'pie', prompt: 'Escribe los huesos del tarso tal como aparecen en clase (las tres cuñas cuentan como una).', items: [{ label: 'Calcáneo' }, { label: 'Astrágalo' }, { label: 'Escafoides', accept: ['navicular'] }, { label: 'Cuboides' }, { label: 'Cuneiformes', accept: ['cuñas', 'cuneiforme', 'cuña'] }] },
+  { id: 'c:pie:calcaneo', type: 'choice', region: 'pie', prompt: '¿Qué hueso forma el talón?', options: ['El calcáneo', 'El astrágalo', 'El cuboides', 'El escafoides'], answer: 0 },
+
+  { id: 'c:tronco:atlas-occipital', type: 'choice', region: 'tronco', prompt: '¿Con qué parte del cráneo articula el atlas?', options: ['Con los cóndilos occipitales', 'Con las apófisis mastoides', 'Con el esfenoides', 'Con la mandíbula'], answer: 0 },
+  { id: 'c:tronco:axis-partes', type: 'multi', region: 'tronco', prompt: '¿Qué posee el axis?', options: ['Apófisis odontoides', 'Carilla articular superior', 'Carilla articular inferior', 'Apófisis transversa', 'Dos arcos sin cuerpo'], answers: [0, 1, 2, 3] },
+  { id: 'c:tronco:c7', type: 'choice', region: 'tronco', prompt: '¿Qué caracteriza a la séptima vértebra cervical?', options: ['Es una vértebra de transición, con apófisis espinosa larga (prominente)', 'No tiene cuerpo', 'Tiene apófisis odontoides', 'Articula con las costillas'], answer: 0 },
+  { id: 'c:tronco:bifida', type: 'choice', region: 'tronco', prompt: '¿En qué vértebras la apófisis espinosa es bífida?', options: ['En las cervicales típicas', 'En las torácicas', 'En las lumbares', 'En las sacras'], answer: 0 },
+  { id: 'c:tronco:transverso-tuberculos', type: 'choice', region: 'tronco', prompt: 'En una vértebra cervical típica, ¿en cuántos tubérculos se divide la apófisis transversa?', options: ['En dos: anterior y posterior', 'En uno', 'En tres', 'No se divide'], answer: 0 },
+  { id: 'c:tronco:cervical-lista', type: 'list', region: 'tronco', prompt: 'Escribe las seis partes de una vértebra cervical que numera la diapositiva.', items: [{ label: 'Cuerpo' }, { label: 'Apófisis transversa', accept: ['transversa', 'proceso transverso'] }, { label: 'Agujero transverso', accept: ['foramen transverso', 'foramen transversal'] }, { label: 'Apófisis articular superior', accept: ['apófisis articular', 'articular superior'] }, { label: 'Lámina' }, { label: 'Apófisis espinosa', accept: ['espinosa', 'proceso espinoso'] }] },
+  { id: 'c:tronco:sacro-forma', type: 'choice', region: 'tronco', prompt: '¿Cómo es el sacro?', options: ['Un hueso impar, central y simétrico, de 5 vértebras fusionadas', 'Un hueso par de 4 vértebras', 'Un hueso impar de 3 vértebras móviles', 'Un cartílago'], answer: 0 },
+  { id: 'c:tronco:sacro-vertice', type: 'choice', region: 'tronco', prompt: '¿Con qué articula el vértice del sacro?', options: ['Con el cóccix', 'Con la quinta lumbar', 'Con el pubis', 'Con el fémur'], answer: 0 },
+  { id: 'c:tronco:sacro-lista', type: 'multi', region: 'tronco', prompt: '¿Qué se puede ver en el sacro?', options: ['Agujeros sacros anteriores y posteriores', 'Crestas sacras medial y lateral', 'Promontorio', 'Conducto sacro', 'Apófisis odontoides'], answers: [0, 1, 2, 3] },
+  { id: 'c:tronco:lineas', type: 'choice', region: 'tronco', prompt: '¿Qué son las líneas transversales del sacro?', options: ['Las huellas de la fusión de sus vértebras', 'Las inserciones de los glúteos', 'Los bordes de los agujeros sacros', 'Las carillas para el coxal'], answer: 0 },
+  { id: 'c:tronco:cola', type: 'choice', region: 'tronco', prompt: '¿Qué es la cola vestigial?', options: ['Un exceso en la parte baja de la espalda que recuerda a una cola: un coxis largo', 'Una vértebra lumbar de más', 'La fusión del sacro con el ilion', 'Una costilla cervical'], answer: 0, explanation: 'Es muy rara: hay unos 100 casos documentados desde el siglo XVII.' },
+  { id: 'c:tronco:celular', type: 'choice', region: 'tronco', prompt: 'El «síndrome del celular» afecta sobre todo a…', options: ['La columna cervical', 'La columna lumbar', 'El sacro', 'Las costillas'], answer: 0, explanation: 'Por mantener la cabeza inclinada hacia delante durante mucho tiempo.' },
+  { id: 'c:tronco:componentes', type: 'multi', region: 'tronco', prompt: 'Además de las 33 vértebras, ¿qué conforma la columna vertebral?', options: ['Discos intervertebrales', 'Ligamentos', 'Músculos', 'Meniscos'], answers: [0, 1, 2] },
+  { id: 'c:tronco:toracicas-cuerpo', type: 'choice', region: 'tronco', prompt: '¿Qué función tiene el arco de las vértebras?', options: ['Formar el canal que protege la médula espinal', 'Soportar el peso del cuerpo', 'Articular con las costillas', 'Unirse al esternón'], answer: 0, explanation: 'El cuerpo de cada vértebra soporta el peso de la que está encima; el arco forma el canal.' },
+]
+
+export const preguntasDeClase: Question[] = [...laminas, ...texto, ...mas]
