@@ -7,6 +7,7 @@ export type RegionId =
   | 'miembro-inferior'
   | 'pie'
   | 'tronco'
+  | 'general'
 
 export interface Region {
   id: RegionId
@@ -44,6 +45,8 @@ export interface Bone {
   articulations?: string[]
   forensic?: string
   image?: string
+  /** Concepto general (epífisis, médula ósea…), no un hueso: la ficha no muestra tipo ni lateralidad. */
+  concept?: boolean
   /** Hueso de una serie numerada (metacarpianos, falanges…): se muestra compacto y no se pide escribir su nombre. */
   series?: boolean
 }
@@ -109,6 +112,8 @@ export interface LabelQ extends QBase {
   only?: string[]
   /** Deja un solo lado de los huesos pares (una sola extremidad). */
   half?: boolean
+  /** Acerca la cámara a las partes preguntadas (un extremo del hueso, una articulación). */
+  zoom?: boolean
 }
 
 export type Question = ChoiceQ | MultiQ | WriteQ | ListQ | IdentifyQ | LabelQ

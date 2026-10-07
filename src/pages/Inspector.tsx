@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type DragEvent } from 'react'
 import { Check, Copy, Upload } from 'lucide-react'
 import type { Mesh, Object3D } from 'three'
-import type { ModelDef } from '../data/models'
+import { useSearchParams } from 'react-router-dom'
+import { models, type ModelDef } from '../data/models'
 import { partName } from '../data/parts'
 import { cn } from '../lib/text'
 import { ModelViewer, type MeshClick } from '../three/ModelViewer'
@@ -21,9 +22,12 @@ export function Inspector() {
 
   useEffect(() => () => void (file && URL.revokeObjectURL(file.url)), [file])
 
+  // «?modelo=<id>» abre un modelo ya registrado, con sus vistas: sirve para leer coordenadas de puntos.
+  const [params] = useSearchParams()
+  const registered = models[params.get('modelo') ?? '']
   const def = useMemo<ModelDef | null>(
-    () => (file ? { id: `inspector:${file.url}`, title: file.name, url: file.url, parts: [] } : null),
-    [file],
+    () => (registered ? registered : file ? { id: `inspector:${file.url}`, title: file.name, url: file.url, parts: [] } : null),
+    [file, registered],
   )
 
   const load = (f: File | undefined) => {

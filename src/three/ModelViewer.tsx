@@ -1,10 +1,12 @@
 import { Component, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MutableRefObject, type ReactNode } from 'react'
 import { Canvas, invalidate, useFrame, useThree, type ThreeEvent } from '@react-three/fiber'
 import { Bvh, OrbitControls, useGLTF } from '@react-three/drei'
-import { Box3, Color, type DirectionalLight, type Group, Mesh, MeshStandardMaterial, SphereGeometry, Vector3, type Material, type Object3D, type PerspectiveCamera } from 'three'
+import { Box3, Color, type DirectionalLight, type Group, Mesh, Raycaster, MeshStandardMaterial, SphereGeometry, Vector3, type Material, type Object3D, type PerspectiveCamera } from 'three'
 import { Palette, RotateCcw } from 'lucide-react'
 import { models, type ModelDef, type ModelView } from '../data/models'
-import { partName } from '../data/parts'
+import { partBone, partName } from '../data/parts'
+import tints from '../data/tints.json'
+import { zoneKey } from '../data/zones'
 import { cn } from '../lib/text'
 import { useProgress } from '../store/progress'
 import { buildMatcher } from './meshMatch'
@@ -34,11 +36,17 @@ interface Props {
   only?: string[]
   /** Vista inicial (id de una de las `views` del modelo). */
   view?: string
+  /** Encuadra solo estas partes en vez del modelo entero. */
+  fitParts?: string[]
+  /** Parte que debe verse al abrir: se elige la vista hacia la que mira (p. ej. la posterior para la fosa olecraniana). */
+  focusPart?: string
   /** Con huesos pares, deja solo los de un lado (para aislar una extremidad). */
   half?: boolean
   /** Partes de las que sale una línea hacia un recuadro lateral, como en una lámina rotulada. */
   callouts?: string[]
   renderCallout?: (partId: string) => ReactNode
+  /** Omite las etiquetas de las partes que desde la vista actual quedan tapadas o por detrás. */
+  hideOccludedCallouts?: boolean
   /** Recuadro activo: su línea se resalta. */
   activeCallout?: string | null
   onPick?: (partId: string) => void
@@ -51,27 +59,20 @@ const COLORS = { sel: '#ff9466', ok: '#3ecf9e', bad: '#f2708a', hint: '#ffc35c' 
 const IVORY = new Color('#e9dcc3')
 
 /**
- * Color en el modo «Colores» de las partes cuyos modelos vienen en un solo tono
- * (cintura escapular, escápula y pelvis). El resto de modelos traen el color en su material.
+ * Color de una malla en el modo «Colores»: el de su material si el archivo la trae
+ * coloreada («tint_…») y, si viene en un solo tono, el de la tabla data/tints.json,
+ * que guarda el color de esa misma pieza en los modelos que sí lo traen.
  */
-const PALETTE: Record<string, Color> = Object.fromEntries(
-  Object.entries({
-    clavicula: '#8db8e0',
-    escapula: '#e2ce9c',
-    'escapula-acromion': '#8dd386',
-    'escapula-coracoides': '#d6a8d7',
-    'escapula-glenoidea': '#e7a868',
-    'escapula-espina': '#9fbcd6',
-    'escapula-supraespinosa': '#6cc7ba',
-    'escapula-infraespinosa': '#e2ce9c',
-    ilion: '#e8b44c',
-    isquion: '#8dd386',
-    pubis: '#9fbfe8',
-    sacro: '#40c5c0',
-    coccix: '#c59ad7',
-  }).map(([part, hex]) => [part, new Color(hex)]),
-)
-const tintOf = (mesh: Mesh, i: number): Color => PALETTE[mesh.userData.partId] ?? mesh.userData.base[i]
+const TINTS = Object.fromEntries(Object.entries(tints as Record<string, string>).map(([key, hex]) => [key, new Color(hex)]))
+const tintOf = (mesh: Mesh, i: number): Color => mesh.userData.tint ?? mesh.userData.base[i]
+
+/** Parte por la que cuenta una malla al buscar su estado: la suya o, si es una zona, el hueso entero. */
+const stateOf = <T,>(id: string, lookup: (id: string) => T | undefined): T | undefined => {
+  const own = lookup(id)
+  if (own !== undefined) return own
+  const owner = partBone(id)
+  return owner && owner !== id ? lookup(owner) : undefined
+}
 
 
 /** Color con el que se pinta cada parte de un modelo ya cargado en el modo «Colores» (para leyendas). */
@@ -109,15 +110,18 @@ function prepare(root: Object3D, def: ModelDef, only?: string[], half?: boolean)
     mesh.userData.base = own.map((m) => ((m as MeshStandardMaterial).color ?? new Color('#ffffff')).clone())
     // Las cavidades (órbitas, fosa nasal) conservan su color oscuro también en modo hueso.
     mesh.userData.fixed = own.some((m) => m.name === 'cavity')
+    mesh.userData.tint = own.some((m) => m.name.startsWith('tint_')) ? undefined : TINTS[zoneKey(mesh.name)]
   }
   if (def.hotspots?.length) {
-    const radius = new Box3().setFromObject(root).getSize(new Vector3()).length() * 0.012
+    const radius = new Box3().setFromObject(root).getSize(new Vector3()).length() * 0.011
     for (const h of def.hotspots) {
       const dot = new Mesh(new SphereGeometry(radius, 16, 12), new MeshStandardMaterial({ color: '#8fd3ff', roughness: 0.4 }))
       dot.position.set(...h.position)
       dot.name = h.id
       dot.userData.partId = h.id
       dot.userData.base = [new Color('#8fd3ff')]
+      dot.userData.fixed = true
+      dot.userData.point = true
       root.add(dot)
     }
   }
@@ -202,7 +206,7 @@ interface Layout {
 }
 
 /** Calcula el punto de anclaje de cada parte y mantiene las líneas guía pegadas a él al rotar. */
-function CalloutLines({ object, parts, viewKey, lines, dots, badges, boxes, onLayout }: { object: Object3D; parts: string[]; viewKey: string; lines: ElMap<SVGLineElement>; dots: ElMap<SVGCircleElement>; badges: ElMap<SVGGElement>; boxes: ElMap<HTMLElement>; onLayout: (l: Layout) => void }) {
+function CalloutLines({ object, parts, viewKey, hideOccluded, hidden, lines, dots, badges, boxes, onLayout }: { object: Object3D; parts: string[]; viewKey: string; hideOccluded?: boolean; hidden?: string[]; lines: ElMap<SVGLineElement>; dots: ElMap<SVGCircleElement>; badges: ElMap<SVGGElement>; boxes: ElMap<HTMLElement>; onLayout: (l: Layout) => void }) {
   const anchors = useRef(new Map<string, Vector3>())
   const v = useMemo(() => new Vector3(), [])
   const camera = useThree((s) => s.camera)
@@ -228,8 +232,22 @@ function CalloutLines({ object, parts, viewKey, lines, dots, badges, boxes, onLa
       if (!all.length) continue
       const oneSide = all.filter((m) => (centerOf(m).x - mid) * sign >= 0)
       const paired = oneSide.length > 0 && oneSide.length < all.length
-      world.set(id, surfaceAnchor(paired ? oneSide : all, toCamera))
+      // Un punto se ancla en su centro; una malla, en el vértice de su cara visible.
+      world.set(id, all[0].userData.point ? all[0].getWorldPosition(new Vector3()) : surfaceAnchor(paired ? oneSide : all, toCamera))
       if (paired && !lateral) otherSide.set(id, all.filter((m) => !oneSide.includes(m)))
+    }
+    // Una parte se considera visible si, mirando desde la cámara hacia su punto de anclaje, lo primero que se ve es ella.
+    if (hideOccluded) {
+      for (const id of hidden ?? []) world.delete(id)
+      const ray = new Raycaster()
+      const meshes = meshesOf(object)
+      const points = new Set(meshes.filter((m) => m.userData.point).map((m) => m.userData.partId as string))
+      for (const [id, anchor] of [...world]) {
+        ray.set(camera.position, anchor.clone().sub(camera.position).normalize())
+        const hit = ray.intersectObjects(meshes, false)[0]
+        const reaches = hit && (hit.object.userData.partId === id || (!points.has(id) && hit.point.distanceTo(anchor) <= camera.position.distanceTo(anchor) * 0.004))
+        if (hit && !reaches) world.delete(id)
+      }
     }
 
     // Si las partes se reparten a lo ancho (carpo), la mitad izquierda va a la columna izquierda;
@@ -262,7 +280,7 @@ function CalloutLines({ object, parts, viewKey, lines, dots, badges, boxes, onLa
     const centre = onScreen(box.getCenter(new Vector3()))
     const order = (column: string[], x: number) => uncrossed(column.map((id) => flat.get(id)!), x, centre.y, reach * 0.12).map((i) => column[i])
     onLayout({ left: order(left, centre.x - reach), right: order(right_, centre.x + reach) })
-  }, [object, parts, viewKey, camera, onLayout])
+  }, [object, parts, viewKey, hideOccluded, hidden, camera, onLayout])
 
   useFrame(({ camera, gl }) => {
     const stage = gl.domElement.getBoundingClientRect()
@@ -331,7 +349,9 @@ function Pickable({ object, colors, selected, selectedMesh, marks, focus, hovere
     const sel = new Set(selected)
     for (const mesh of meshesOf(object)) {
       const id: string | null = mesh.userData.partId
-      const state = id ? (marks?.[id] ?? (sel.has(id) || (selectedMesh && mesh.name === selectedMesh) ? 'sel' : null)) : null
+      // Una zona hereda la marca de su hueso (señalar «sacro» ilumina también sus zonas), pero un punto solo la suya.
+      const find = <T,>(lookup: (id: string) => T | undefined) => (!id ? undefined : mesh.userData.point ? lookup(id) : stateOf(id, lookup))
+      const state = find((p) => marks?.[p]) ?? (find((p) => (sel.has(p) ? true : undefined)) || (selectedMesh && mesh.name === selectedMesh) ? 'sel' : null)
       materialsOf(mesh).forEach((material, i) => {
         const mat = material as MeshStandardMaterial
         if (!mat.color) return
@@ -376,9 +396,35 @@ interface SourceProps extends Omit<PickableProps, 'object'> {
   half?: boolean
 }
 
-function GlbModel({ def, only, half, wide, compact, view, ...rest }: SourceProps & { wide: boolean; compact: boolean; view?: ModelView }) {
+function GlbModel({ def, only, half, wide, compact, view, focusPart, fitParts, onBestView, ...rest }: SourceProps & { wide: boolean; compact: boolean; view?: ModelView; focusPart?: string; fitParts?: string[]; onBestView: (id: string) => void }) {
   const { scene } = useGLTF(def.url)
   const object = useMemo(() => prepare(scene.clone(true), def, only, half), [scene, def, only, half])
+
+  // Vista desde la que mejor se ve la parte de interés: aquella hacia la que apunta, de media, su superficie.
+  useEffect(() => {
+    if (!focusPart || !def.views || def.views.length < 2) return
+    object.updateWorldMatrix(true, true)
+    const facing = new Vector3()
+    const n = new Vector3()
+    let samples = 0
+    for (const mesh of meshesOf(object)) {
+      if (mesh.userData.partId !== focusPart) continue
+      if (mesh.userData.point) {
+        facing.add(mesh.getWorldPosition(n).sub(centerOf(object)).normalize().multiplyScalar(50))
+        samples += 50
+        continue
+      }
+      const normal = mesh.geometry.attributes.normal
+      if (!normal) continue
+      const step = Math.max(1, Math.floor(normal.count / 1500))
+      for (let i = 0; i < normal.count; i += step, samples++) facing.add(n.fromBufferAttribute(normal, i).transformDirection(mesh.matrixWorld))
+    }
+    // Una pieza cerrada (un hueso entero) mira a todos lados por igual: se deja la vista inicial.
+    if (!samples || facing.length() / samples < 0.3) return
+    facing.normalize()
+    const best = def.views.map((v) => ({ id: v.id, score: new Vector3(...v.dir).normalize().dot(facing) })).sort((a, b) => b.score - a.score)[0]
+    onBestView(best.id)
+  }, [object, focusPart, def, onBestView])
 
   // Encuadre: se coloca la cámara de una vez, sin animación. Una animación de encuadre
   // aún en curso se cortaba al primer arrastre y el modelo daba un salto.
@@ -389,6 +435,11 @@ function GlbModel({ def, only, half, wide, compact, view, ...rest }: SourceProps
     if (!group.current) return
     group.current.updateWorldMatrix(true, true)
     const box = new Box3().setFromObject(group.current)
+    if (fitParts?.length) {
+      const near = new Box3()
+      for (const mesh of meshesOf(group.current)) if (fitParts.includes(mesh.userData.partId)) near.expandByObject(mesh)
+      if (!near.isEmpty()) box.copy(near).expandByScalar(near.getSize(new Vector3()).length() * 0.18)
+    }
     const size = box.getSize(new Vector3())
     const toCamera = new Vector3(...(view?.dir ?? [0, 0, 1])).normalize()
     const right = Math.abs(toCamera.y) > 0.95 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0).cross(toCamera).normalize()
@@ -410,7 +461,7 @@ function GlbModel({ def, only, half, wide, compact, view, ...rest }: SourceProps
       controls.update()
     }
     invalidate()
-  }, [object, wide, compact, view, camera, controls])
+  }, [object, wide, compact, view, fitParts, camera, controls])
 
   return (
     <group ref={group} rotation={def.rotation ?? [0, 0, 0]}>
@@ -448,12 +499,14 @@ class LoadBoundary extends Component<{ children: ReactNode }, { failed: boolean 
   }
 }
 
-export function ModelViewer({ model, labels = true, className, onPick, onReady, only, half, view: initialView, callouts, renderCallout, activeCallout, ...rest }: Props) {
+export function ModelViewer({ model, labels = true, className, onPick, onReady, only, half, view: initialView, focusPart, fitParts, callouts, renderCallout, activeCallout, hideOccludedCallouts, ...rest }: Props) {
   const def = typeof model === 'string' ? models[model] : model
   const [hovered, setHovered] = useState<string | null>(null)
   const [resets, setResets] = useState(0)
   const [viewId, setViewId] = useState(initialView)
   const activeView = def.views?.find((v) => v.id === viewId) ?? def.views?.[0]
+  // La vista sugerida por `focusPart` solo se aplica si aún no se ha elegido ninguna.
+  const onBestView = useCallback((id: string) => setViewId((current) => current ?? id), [])
   const [layout, setLayout] = useState<Layout | null>(null)
   // En un escenario estrecho (móvil) los recuadros no caben a los lados del modelo: pasan
   // debajo, numerados, y sobre el modelo queda un marcador con el número de cada uno.
@@ -483,6 +536,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
   const calloutKey = callouts?.join('|')
   const stableOnly = useMemo(() => only, [onlyKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const stableCallouts = useMemo(() => callouts, [calloutKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  const stableFit = useMemo(() => fitParts, [fitParts?.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const sourceKey = `${def.url}:${onlyKey ?? ''}:${half ? 1 : 0}`
 
@@ -512,7 +566,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
     setHovered,
     onTap: setTapped,
     children: stableCallouts
-      ? (object) => <CalloutLines object={object} parts={stableCallouts} viewKey={`${activeView?.id}:${resets}`} lines={lines} dots={dots} badges={badges} boxes={boxes} onLayout={setLayout} />
+      ? (object) => <CalloutLines object={object} parts={stableCallouts} viewKey={`${activeView?.id}:${resets}`} hideOccluded={hideOccludedCallouts} hidden={activeView?.hide} lines={lines} dots={dots} badges={badges} boxes={boxes} onLayout={setLayout} />
       : undefined,
   }
 
@@ -527,7 +581,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
           <directionalLight position={[4, 6, 8]} intensity={0.9} />
           <HeadLight />
           <Suspense fallback={null}>
-            <GlbModel {...shared} wide={!!callouts && !compact} compact={compact} view={activeView} />
+            <GlbModel {...shared} wide={!!callouts && !compact} compact={compact} view={activeView} focusPart={focusPart} fitParts={stableFit} onBestView={onBestView} />
           </Suspense>
           <OrbitControls makeDefault enableDamping />
         </Canvas>
@@ -552,7 +606,7 @@ export function ModelViewer({ model, labels = true, className, onPick, onReady, 
       {callouts && layout && renderCallout && !compact && (
         <>
           <svg className="pointer-events-none absolute inset-0 h-full w-full">
-            {callouts.map((id) => (
+            {numbered.map((id) => (
               <g key={id}>
                 <line
                   ref={(el) => void (lines.current[id] = el)}

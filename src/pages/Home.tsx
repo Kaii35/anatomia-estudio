@@ -78,7 +78,7 @@ export function Home() {
                 </div>
                 <p className="mt-1.5 flex-1 text-sm text-muted">{r.description}</p>
                 <p className="mt-4 text-xs text-muted">
-                  {count} huesos · {qs.length} preguntas
+                  {count} {r.id === 'general' ? 'temas' : 'huesos'} · {qs.length} preguntas
                 </p>
                 <ProgressBar value={m} color={r.color} className="mt-2" />
                 <div className="mt-4 flex gap-2">

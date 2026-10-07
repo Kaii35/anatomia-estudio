@@ -1,5 +1,6 @@
 import { bones } from '../data/bones'
 import type { ModelDef } from '../data/models'
+import { zoneKey, zones } from '../data/zones'
 
 /** «Left_Femur.001» → «left femur 001» */
 export function normalizeMeshName(name: string): string {
@@ -27,6 +28,7 @@ const SPINE: Record<string, string> = { C: 'cervicales', T: 'toracicas', L: 'lum
  */
 function byConvention(name: string): string | null | undefined {
   let m: RegExpMatchArray | null
+  if (zones[zoneKey(name)]) return zoneKey(name)
   if (/_cavity/.test(name)) return null
   if (name.startsWith('tooth_')) return 'dientes'
   if ((m = name.match(/^metacarpal_(\d)/))) return `mc-${m[1]}`
@@ -44,6 +46,8 @@ function byConvention(name: string): string | null | undefined {
   if (name.startsWith('cartilage_')) return 'cartilagos-costales'
   if (name.startsWith('disc_')) return 'discos'
   if (name.startsWith('acromioclavicular_disc')) return 'disco-acromioclavicular'
+  if (name.startsWith('sternoclavicular_disc')) return 'disco-esternoclavicular'
+  if (name.startsWith('femoral_head_cartilage')) return 'cartilago-femoral'
   if ((m = name.match(/^sternum_([a-z]+)/))) return STERNUM[m[1]]
   if ((m = name.match(/^([CTL])\d\d$/))) return SPINE[m[1]]
   return undefined

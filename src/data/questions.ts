@@ -2,7 +2,8 @@ import type { Question, RegionId } from '../types'
 import { hashString, normalize, seededRandom, shuffle } from '../lib/text'
 import { boneById, bones } from './bones'
 import { models } from './models'
-import { partAccept, partName, partRegion } from './parts'
+import { partAccept, partName, partNote, partRegion } from './parts'
+import { preguntasDeClase } from './questions-clase'
 
 /**
  * PREGUNTAS ESCRITAS A MANO
@@ -1047,16 +1048,18 @@ function landmarkQuestions(): Question[] {
 function modelQuestions(): Question[] {
   const out: Question[] = []
   for (const model of Object.values(models)) {
-    const ids = [...model.parts, ...(model.hotspots ?? []).map((h) => h.id)]
+    const ids = [...new Set([...model.parts, ...(model.hotspots ?? []).map((h) => h.id)])]
     const names = ids.map((p) => partName(p, model))
     for (const part of ids) {
       const region: RegionId | undefined = partRegion(part, model)
       if (!region) continue
       const name = partName(part, model)
       const bone = boneById[part]
+      const note = partNote(part)
+      const explanation = note ? `${name}. ${note}` : undefined
       const key = `${model.id}:${part}`
       const visual = { model: model.id, highlight: [part] }
-      out.push({ id: `g:id:${key}`, type: 'identify', region, key, model: model.id, prompt: `Selecciona en el modelo:  ${name}`, targets: [part] })
+      out.push({ id: `g:id:${key}`, type: 'identify', region, key, model: model.id, prompt: `Selecciona en el modelo:  ${name}`, targets: [part], explanation })
       const vc = `g:vc:${key}`
       out.push({
         id: vc,
@@ -1067,6 +1070,7 @@ function modelQuestions(): Question[] {
         prompt: '¿Qué estructura está resaltada?',
         options: withDistractors(vc, name, names),
         answer: 0,
+        explanation,
       })
       if (!bone?.series) {
         out.push({
@@ -1077,6 +1081,7 @@ function modelQuestions(): Question[] {
           visual,
           prompt: 'Escribe el nombre de la estructura resaltada.',
           accept: partAccept(part, model),
+          explanation,
         })
       }
     }
@@ -1084,6 +1089,6 @@ function modelQuestions(): Question[] {
   return out
 }
 
-export const questions: Question[] = [...handmade, ...landmarkQuestions(), ...modelQuestions()]
+export const questions: Question[] = [...handmade, ...preguntasDeClase, ...landmarkQuestions(), ...modelQuestions()]
 
 export const questionsByRegion = (region: RegionId) => questions.filter((q) => q.region === region)

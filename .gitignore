@@ -3,3 +3,5 @@ dist
 *.local
 # Modelos sin optimizar (ver scripts/optimizar-modelos.mjs)
 modelos-originales
+# Apuntes y diapositivas de clase (material de terceros y personal)
+docs

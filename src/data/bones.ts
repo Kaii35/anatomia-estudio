@@ -972,6 +972,63 @@ const tronco: Bone[] = [
   },
 ]
 
-export const bones: Bone[] = [...craneo, ...cinturaEscapular, ...miembroSuperior, ...mano, ...pelvis, ...miembroInferior, ...pie, ...tronco]
+const concepto = (id: string, name: string, group: string, summary: string, landmarks?: Landmark[], forensic?: string): Bone => ({
+  id,
+  name,
+  region: 'general',
+  group,
+  kind: 'largo',
+  paired: false,
+  concept: true,
+  summary,
+  landmarks,
+  forensic,
+})
+
+const general: Bone[] = [
+  concepto('epifisis', 'Epífisis', 'Partes de un hueso largo', 'Partes ensanchadas y terminales de un hueso largo. Hay dos: la proximal y la distal.'),
+  concepto('diafisis', 'Diáfisis', 'Partes de un hueso largo', 'Zona alargada del hueso, la «caña», entre las dos epífisis. En su interior está la cavidad medular.'),
+  concepto(
+    'metafisis',
+    'Metáfisis',
+    'Partes de un hueso largo',
+    'Unión entre la epífisis y la diáfisis. En ella está el cartílago de crecimiento.',
+    undefined,
+    'El grado de cierre del cartílago de crecimiento permite estimar la edad en subadultos.',
+  ),
+  concepto('apofisis', 'Apófisis', 'Partes de un hueso largo', 'Saliente de un hueso: sirve de inserción a músculos y ligamentos o forma parte de una articulación.'),
+  concepto(
+    'medula-osea',
+    'Médula ósea',
+    'Médula y sangre',
+    'Tejido del interior del hueso donde se encuentran y se forman las células sanguíneas.',
+    [
+      l('Línea roja: eritrocitos', 'Glóbulos rojos. Su hemoglobina, que contiene hierro, transporta el oxígeno.'),
+      l('Línea blanca: leucocitos', 'Glóbulos blancos: son el sistema inmune, millones de células que combaten patógenos.'),
+      l('Tipos de leucocitos', 'Linfocitos (B y T), basófilos, monocitos y macrófagos.'),
+      l('Plaquetas', 'Flotan en el plasma sanguíneo y aportan factores de crecimiento que reparan los tejidos.'),
+    ],
+    'Las muestras de fémur y de costilla contienen médula, por lo que son útiles para obtener material genético.',
+  ),
+  concepto(
+    'articulaciones',
+    'Articulaciones',
+    'Esqueleto',
+    'Permiten la unión entre huesos y entre hueso y cartílago.',
+    [
+      l('Móviles (diartrosis)', 'Permiten muchos movimientos: hombro, cadera, rodilla.'),
+      l('Semimóviles', 'Permiten solo ciertos movimientos: las de la columna vertebral.'),
+    ],
+  ),
+  concepto(
+    'esqueleto',
+    'El esqueleto',
+    'Esqueleto',
+    'El esqueleto adulto tiene 206 huesos. El más pequeño es el estribo, en el oído medio; el más largo, el fémur.',
+    [l('Fémur', 'Se usa para determinar la estatura.'), l('Pelvis', 'Es la mejor zona para determinar el sexo.'), l('Estribo', 'Hueso más pequeño del cuerpo, en el oído medio.')],
+  ),
+]
+
+export const bones: Bone[] = [...general, ...craneo, ...cinturaEscapular, ...miembroSuperior, ...mano, ...pelvis, ...miembroInferior, ...pie, ...tronco]
 
 export const boneById: Record<string, Bone> = Object.fromEntries(bones.map((b) => [b.id, b]))

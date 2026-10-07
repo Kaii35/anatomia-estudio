@@ -5,20 +5,20 @@ import type { Bone, Region, RegionId } from '../types'
 import { regionById } from '../data/regions'
 import { boneById, bones } from '../data/bones'
 import { models } from '../data/models'
-import { partBone, partName, partsOfBone } from '../data/parts'
+import { partBone, partName, partNote, partsOfBone } from '../data/parts'
 import { cn } from '../lib/text'
 import { meshDetail } from '../three/meshMatch'
 import { ModelViewer, partColors } from '../three/ModelViewer'
 import { useProgress } from '../store/progress'
 
-function BoneDetail({ bone, picked, otherRegion }: { bone: Bone; picked: string | null; otherRegion: Region | null }) {
+function BoneDetail({ bone, picked, pickedNote, otherRegion }: { bone: Bone; picked: string | null; pickedNote?: string; otherRegion: Region | null }) {
   return (
     <div className="space-y-5">
       <div>
         <h2 className="font-display text-3xl font-semibold">{bone.name}</h2>
         <div className="mt-2 flex flex-wrap gap-2">
-          <span className="chip">Hueso {bone.kind}</span>
-          <span className="chip">{bone.paired ? 'Par' : 'Impar'}</span>
+          {!bone.concept && <span className="chip">Hueso {bone.kind}</span>}
+          {!bone.concept && <span className="chip">{bone.paired ? 'Par' : 'Impar'}</span>}
           {bone.aliases && !bone.series && <span className="chip">También: {bone.aliases.slice(0, 2).join(', ')}</span>}
           {otherRegion && (
             <Link to={`/region/${otherRegion.id}`} className="chip text-ink! hover:border-accent">
@@ -28,10 +28,11 @@ function BoneDetail({ bone, picked, otherRegion }: { bone: Bone; picked: string 
         </div>
       </div>
       {picked && (
-        <p className="flex items-center gap-2 rounded-xl border border-(--c)/50 bg-(--c)/10 px-3.5 py-2.5 text-[15px]">
-          <MapPin size={16} className="shrink-0 text-(--c)" />
+        <p className="flex items-start gap-2 rounded-xl border border-(--c)/50 bg-(--c)/10 px-3.5 py-2.5 text-[15px]">
+          <MapPin size={16} className="mt-1 shrink-0 text-(--c)" />
           <span>
             Parte señalada: <strong className="font-semibold">{picked}</strong>
+            {pickedNote && <span className="mt-0.5 block text-sm text-muted">{pickedNote}</span>}
           </span>
         </p>
       )}
@@ -40,7 +41,7 @@ function BoneDetail({ bone, picked, otherRegion }: { bone: Bone; picked: string 
 
       {bone.landmarks && (
         <section>
-          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">Accidentes óseos</h3>
+          <h3 className="text-xs font-semibold tracking-wider text-muted uppercase">{bone.concept ? 'Para recordar' : 'Accidentes óseos'}</h3>
           <ul className="mt-2.5 space-y-2">
             {bone.landmarks.map((lm) => (
               <li key={lm.name} className="flex gap-2.5 text-[15px]">
@@ -97,9 +98,20 @@ function RegionView({ region }: { region: Region }) {
   const [showLabels, setShowLabels] = useState(true)
   // Leyenda del modo «Colores»: color de cada parte del modelo cargado.
   const colorsOn = useProgress((s) => s.colors)
-  const [legend, setLegend] = useState<Record<string, string>>({})
-  const onReady = useCallback((root: Parameters<typeof partColors>[0]) => setLegend(partColors(root)), [])
-  const legendParts = Object.keys(legend)
+  // Partes presentes en el modelo cargado, con el color que reciben en el modo «Colores».
+  const [loaded, setLoaded] = useState<{ model?: string; colors: Record<string, string> }>({ colors: {} })
+  const onReady = useCallback(
+    (root: Parameters<typeof partColors>[0]) => {
+      const colors = partColors(root)
+      setLoaded({ model: modelId, colors })
+      // Si el hueso abierto no está en este modelo (p. ej. el húmero al pasar a «Radio y cúbito»), se abre uno que sí.
+      const owners = Object.keys(colors).map(partBone).filter((b): b is string => !!b && boneById[b].region === region.id)
+      setBoneId((current) => (owners.length && !owners.includes(current) ? owners[0] : current))
+    },
+    [modelId, region.id],
+  )
+  const legend = loaded.model === modelId ? loaded.colors : {}
+  const modelParts = Object.keys(legend)
   const card = useRef<HTMLDivElement>(null)
 
   const bone = boneById[boneId]
@@ -111,15 +123,19 @@ function RegionView({ region }: { region: Region }) {
 
   // Etiquetas con flecha: las partes del modelo del mismo grupo que el hueso abierto
   // (p. ej. solo la fila proximal del carpo), o todas si el modelo tiene pocas.
-  const modelParts = modelId ? models[modelId].parts : []
   const sameGroup = modelParts.filter((p) => boneById[partBone(p) ?? '']?.group === bone.group)
-  const labelParts = sameGroup.length ? sameGroup : modelParts.length <= 9 ? modelParts : []
+  // Si el modelo trae el hueso abierto dividido en zonas, se etiquetan esas zonas y no las de sus vecinos.
+  const ownZones = modelParts.filter((p) => p !== bone.id && partBone(p) === bone.id)
+  const labelParts = (ownZones.length > 1 ? ownZones : sameGroup.length ? sameGroup : modelParts.length <= 9 ? modelParts : []).filter((p) => p !== 'dientes').slice(0, 22)
+  // Leyenda de colores: todo el modelo si es pequeño; si no, solo las zonas del hueso abierto.
+  const legendParts = modelParts.length <= 24 ? modelParts : ownZones
   const activePart = pick?.part ?? bone.id
 
   // Texto de «Parte señalada»: solo si aporta algo más que el nombre del hueso de la ficha.
   const pickedName = pick && partName(pick.part)
   const detail = pick?.mesh ? meshDetail(pick.mesh) : null
   const pickedText = pick && (pickedName !== bone.name || detail) ? [pickedName !== bone.name && pickedName, detail].filter(Boolean).join(' · ') : null
+  const pickedNote = pick ? partNote(pick.part) : undefined
 
   return (
     <div style={{ '--c': region.color } as CSSProperties}>
@@ -142,7 +158,8 @@ function RegionView({ region }: { region: Region }) {
             <>
               <ModelViewer
                 model={modelId}
-                selected={pick?.mesh ? [] : pick ? [pick.part] : partsOfBone(bone.id)}
+                selected={pick?.mesh ? [] : pick ? [pick.part] : ownZones.length > 1 ? [] : partsOfBone(bone.id)}
+                hideOccludedCallouts
                 selectedMesh={pick?.mesh}
                 onReady={onReady}
                 onMeshClick={(click) => click.partId && select({ part: click.partId, mesh: click.meshName })}
@@ -189,7 +206,7 @@ function RegionView({ region }: { region: Region }) {
                   </button>
                 )}
               </div>
-{colorsOn && legendParts.length > 0 && legendParts.length <= 24 && (
+{colorsOn && legendParts.length > 0 && (
                 <div className="flex flex-wrap gap-x-1 gap-y-1">
                   {legendParts.map((p) => (
                     <button
@@ -209,7 +226,7 @@ function RegionView({ region }: { region: Region }) {
               )}
               <p className="text-sm text-muted">Haz clic en cualquier pieza del modelo o en una etiqueta para resaltarla y abrir su ficha.</p>
             </>
-          ) : (
+          ) : region.models.length === 0 ? null : (
             <div className="stage flex h-[300px] flex-col items-center justify-center gap-3 rounded-2xl p-8 text-center text-white/70">
               <Box size={34} />
               <p className="max-w-xs text-sm">El modelo 3D de esta región todavía no está cargado. Mientras tanto puedes estudiar las fichas y practicar con preguntas.</p>
@@ -246,7 +263,7 @@ function RegionView({ region }: { region: Region }) {
         </div>
 
         <div ref={card} className="card scroll-mt-20 p-5 sm:p-7">
-          <BoneDetail key={bone.id} bone={bone} picked={pickedText} otherRegion={bone.region !== region.id ? regionById[bone.region] : null} />
+          <BoneDetail key={bone.id} bone={bone} picked={pickedText} pickedNote={pickedNote} otherRegion={bone.region !== region.id ? regionById[bone.region] : null} />
         </div>
       </div>
     </div>

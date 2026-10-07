@@ -4,7 +4,7 @@ import type { ChoiceQ, IdentifyQ, LabelQ, ListQ, MultiQ, WriteQ } from '../types
 import type { SessionItem } from '../lib/session'
 import { cn, findMatch, matchAnswer } from '../lib/text'
 import { models } from '../data/models'
-import { partAccept, partName } from '../data/parts'
+import { partAccept, partBone, partName } from '../data/parts'
 import { ModelViewer, type Mark } from '../three/ModelViewer'
 
 interface BodyProps<Q> {
@@ -249,8 +249,11 @@ export function IdentifyBody({ q, answered, onAnswer }: BodyProps<IdentifyQ>) {
   const model = models[q.model]
   const targets = useMemo(() => new Set(q.targets), [q])
 
-  const pick = (id: string) => {
+  const pick = (picked: string) => {
     if (answered) return
+    // Si se pide un hueso entero y el modelo lo trae por zonas, tocar cualquiera de ellas cuenta como el hueso.
+    const owner = partBone(picked)
+    const id = !targets.has(picked) && owner && targets.has(owner) ? owner : picked
     setSelected((s) => (!q.all ? [id] : s.includes(id) ? s.filter((x) => x !== id) : [...s, id]))
   }
   const check = () => onAnswer(q.all ? setScore(selected, targets) : targets.has(selected[0]) ? 1 : 0)
@@ -318,6 +321,7 @@ export function LabelBody({ q, answered, onAnswer }: BodyProps<LabelQ>) {
         only={q.only}
         half={q.half}
         view={q.view}
+        fitParts={q.zoom ? q.parts : undefined}
         marks={marks}
         labels={answered}
         callouts={q.parts}
@@ -378,7 +382,7 @@ export function QuestionBody({ item, answered, onAnswer }: { item: SessionItem; 
     <div className="space-y-5">
       {q.image && <img src={q.image} alt="" className="max-h-80 w-full rounded-2xl border border-line object-contain" />}
       {q.visual && q.type !== 'identify' && (
-        <ModelViewer model={q.visual.model} marks={marks} focus labels={answered} className="h-[300px] sm:h-[320px] md:h-[380px]" />
+        <ModelViewer model={q.visual.model} marks={marks} focus focusPart={q.visual.highlight[0]} labels={answered} className="h-[300px] sm:h-[320px] md:h-[380px]" />
       )}
       {q.type === 'choice' && <ChoiceBody q={q} {...props} />}
       {q.type === 'multi' && <MultiBody q={q} {...props} />}
