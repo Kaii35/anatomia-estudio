@@ -49,6 +49,10 @@ export default function RespiraGame({
   const [completa, setCompleta] = useState(false);
   const [movil, setMovil] = useState(false);
   const [menu, setMenu] = useState(false);
+  // Estado que se lee del juego: si el mapa está abierto (el hamburguesa se oculta para no tapar su botón de cerrar)
+  // y si el sonido está silenciado.
+  const [mapaAbierto, setMapaAbierto] = useState(false);
+  const [sonidoOff, setSonidoOff] = useState(false);
 
   useEffect(() => {
     const cambio = () => setCompleta(document.fullscreenElement !== null);
@@ -74,7 +78,10 @@ export default function RespiraGame({
       doc.querySelectorAll<HTMLButtonElement>('button').forEach((b) => {
         const texto = (b.textContent ?? '').trim();
         if (texto === 'Mapa' || texto === '¡Hey!' || b.getAttribute('aria-label') === 'Sonido') b.style.display = 'none';
+        if (b.getAttribute('aria-label') === 'Sonido') setSonidoOff((b.textContent ?? '').includes('×'));
       });
+      // El título del mapa solo existe mientras está abierto.
+      setMapaAbierto([...doc.querySelectorAll<HTMLElement>('div')].some((d) => d.textContent?.trim() === 'Mapa del instituto'));
     };
     ocultar();
     const id = window.setInterval(ocultar, 400);
@@ -109,7 +116,7 @@ export default function RespiraGame({
   const elementosMenu: { texto: string; accion: () => void; salir?: boolean }[] = [
     { texto: completa ? 'Salir de pantalla completa' : 'Pantalla completa', accion: alternar },
     { texto: 'Mapa', accion: accion.mapa },
-    { texto: 'Sonido ♪', accion: accion.sonido },
+    { texto: sonidoOff ? 'Activar sonido' : 'Silenciar sonido', accion: accion.sonido },
     { texto: '¡Hey!', accion: accion.hey },
   ];
   if (salirHref) elementosMenu.push({ texto: 'Salir', accion: () => (window.location.hash = salirHref.replace(/^#/, '')), salir: true });
@@ -130,6 +137,7 @@ export default function RespiraGame({
 
       {movil ? (
         <>
+          {!mapaAbierto && (
           <button
             type="button"
             onClick={() => setMenu((m) => !m)}
@@ -143,6 +151,7 @@ export default function RespiraGame({
               [0, 1, 2].map((i) => <span key={i} style={{ width: 18, height: 2, background: '#F6F4EF' }} />)
             )}
           </button>
+          )}
           {menu && (
             <div
               role="menu"
