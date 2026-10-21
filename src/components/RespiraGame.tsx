@@ -1,8 +1,12 @@
-import { CSSProperties, useEffect, useMemo, useRef, useState } from 'react';
+import { CSSProperties, MutableRefObject, useEffect, useMemo, useRef, useState } from 'react';
 
 export interface RespiraGameProps {
   /** Fuerza los controles táctiles (joystick + botón A) aunque se abra en computador. */
   forzarTactil?: boolean;
+  /** Recibe el iframe, para poder enviarle mensajes (por ejemplo, la posición de otros jugadores). */
+  iframeRef?: MutableRefObject<HTMLIFrameElement | null>;
+  /** Mensajes que envía el juego (posición, fin de partida). */
+  onMensaje?: (datos: any) => void;
   /** Ruta donde copiaste el juego dentro de /public. Por defecto: '/respira/index.html'. */
   src?: string;
   /** Alto del juego. Por defecto ocupa toda la pantalla (100dvh). */
@@ -36,6 +40,8 @@ const estilo = {
  */
 export default function RespiraGame({
   forzarTactil = false,
+  iframeRef,
+  onMensaje,
   src = '/respira/index.html',
   height = '100dvh',
   botonPantallaCompleta = true,
@@ -43,9 +49,17 @@ export default function RespiraGame({
   className,
   style,
 }: RespiraGameProps) {
-  const url = useMemo(() => (forzarTactil ? `${src}?touch=1` : src), [forzarTactil, src]);
+  const url = useMemo(() => (forzarTactil ? `${src}${src.includes('?') ? '&' : '?'}touch=1` : src), [forzarTactil, src]);
 
-  const iframe = useRef<HTMLIFrameElement>(null);
+  const iframe = useRef<HTMLIFrameElement | null>(null);
+
+  // Solo se aceptan mensajes del iframe de este juego.
+  useEffect(() => {
+    if (!onMensaje) return;
+    const recibir = (e: MessageEvent) => { if (e.source && e.source === iframe.current?.contentWindow) onMensaje(e.data); };
+    window.addEventListener('message', recibir);
+    return () => window.removeEventListener('message', recibir);
+  }, [onMensaje]);
   const [completa, setCompleta] = useState(false);
   const [movil, setMovil] = useState(false);
   const [menu, setMenu] = useState(false);
@@ -127,7 +141,7 @@ export default function RespiraGame({
       style={{ position: 'relative', width: '100%', height, background: '#0F2A36', overflow: 'hidden', ...style }}
     >
       <iframe
-        ref={iframe}
+        ref={(el) => { iframe.current = el; if (iframeRef) iframeRef.current = el; }}
         key={url}
         src={url}
         title="Respira.exe · Sistema respiratorio"

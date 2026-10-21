@@ -67,6 +67,9 @@ export function Home() {
           <Link to="/aventura" className="btn-primary">
             <Wind size={16} /> RESPIRA.EXE
           </Link>
+          <Link to="/sala" className="btn-soft">
+            Jugar en sala
+          </Link>
         </div>
       </section>
 

@@ -8,6 +8,7 @@ import { Progress } from './pages/Progress'
 import { RegionPage } from './pages/RegionPage'
 import { Respiratorio } from './pages/Respiratorio'
 import RespiraPage from './pages/RespiraPage'
+import RespiraSala from './pages/RespiraSala'
 import { useProgress } from './store/progress'
 
 function ScrollToTop() {
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/modelos" element={<Inspector />} />
           <Route path="/respiratorio" element={<Respiratorio />} />
           <Route path="/aventura" element={<RespiraPage />} />
+          <Route path="/sala" element={<RespiraSala />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
