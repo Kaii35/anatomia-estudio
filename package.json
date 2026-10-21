@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "modelos": "node scripts/optimizar-modelos.mjs"
+    "modelos": "node scripts/optimizar-modelos.mjs",
+    "modelos:presentacion": "node scripts/optimizar-presentacion.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.9",

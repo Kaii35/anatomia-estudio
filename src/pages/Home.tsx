@@ -70,6 +70,9 @@ export function Home() {
           <Link to="/sala" className="btn-soft">
             Jugar en sala
           </Link>
+          <Link to="/presentacion" className="btn-soft">
+            Presentación v2
+          </Link>
         </div>
       </section>
 
