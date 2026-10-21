@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, BookOpen, Flame, RotateCcw, Shuffle, Target } from 'lucide-react'
+import { ArrowRight, BookOpen, Flame, RotateCcw, Shuffle, Target, Wind } from 'lucide-react'
 import { motion } from 'motion/react'
 import { regions } from '../data/regions'
 import { bones } from '../data/bones'
@@ -52,6 +52,21 @@ export function Home() {
               </span>
             )}
           </div>
+        </div>
+      </section>
+
+      <section className="card flex flex-col gap-5 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
+        <div>
+          <p className="text-sm font-semibold tracking-wide text-accent uppercase">Exposición · Sistema respiratorio</p>
+          <h2 className="mt-1 font-display text-2xl font-semibold">La ruta del aire</h2>
+          <p className="mt-1 max-w-xl text-muted">
+            Juego por equipos con las cuatro paradas de la exposición: anatomía, fisiología, lectura forense y el artículo de las diatomeas.
+          </p>
+        </div>
+        <div className="flex shrink-0 flex-wrap gap-2.5">
+          <Link to="/aventura" className="btn-primary">
+            <Wind size={16} /> RESPIRA.EXE
+          </Link>
         </div>
       </section>
 

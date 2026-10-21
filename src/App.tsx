@@ -6,6 +6,8 @@ import { Inspector } from './pages/Inspector'
 import { Practice } from './pages/Practice'
 import { Progress } from './pages/Progress'
 import { RegionPage } from './pages/RegionPage'
+import { Respiratorio } from './pages/Respiratorio'
+import RespiraPage from './pages/RespiraPage'
 import { useProgress } from './store/progress'
 
 function ScrollToTop() {
@@ -32,6 +34,8 @@ export default function App() {
           <Route path="/practica" element={<Practice />} />
           <Route path="/progreso" element={<Progress />} />
           <Route path="/modelos" element={<Inspector />} />
+          <Route path="/respiratorio" element={<Respiratorio />} />
+          <Route path="/aventura" element={<RespiraPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>
