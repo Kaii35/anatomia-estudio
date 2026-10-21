@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { onDisconnect, onValue, ref, remove, set, update } from 'firebase/database';
+import { onChildAdded, onChildChanged, onChildRemoved, onDisconnect, onValue, ref, remove, set, update } from 'firebase/database';
 import { Trophy, Users, X } from 'lucide-react';
 import RespiraGame from '../components/RespiraGame';
 import { db } from '../lib/firebase';
@@ -53,8 +53,9 @@ export default function RespiraSala() {
   const [resultados, setResultados] = useState<Record<string, Resultado>>({});
   const [panel, setPanel] = useState(false);
   const [error, setError] = useState('');
-  const [ahora, setAhora] = useState(Date.now());
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  // Jugadores de la sala tal como llegan de Firebase (uno por id), para no reconstruir la lista completa en cada cambio.
+  const mapaJugadores = useRef(new Map<string, Jugador>());
   const yo = useMemo(identificador, []);
 
   // Entrar a la sala (o crearla): valida el código y el nombre.
@@ -75,41 +76,48 @@ export default function RespiraSala() {
     // Aparece en la sala desde que entra (aún sin posición: x = -1 significa «todavía creando su personaje»).
     set(miRef, { nombre, x: -1, y: -1, dir: 'down', av: {}, t: Date.now() } satisfies Jugador).catch(() => {});
     const latido = window.setInterval(() => update(miRef, { t: Date.now() }).catch(() => {}), 5000);
-    const quitarJugadores = onValue(ref(db, `salas/${sala}/jugadores`), (s) => setJugadores(s.val() ?? {}));
+    // Solo llegan los cambios de cada jugador (no la lista completa): así escala con muchos alumnos.
+    const jugadoresRef = ref(db, `salas/${sala}/jugadores`);
+    const quitarJugadores = [
+      onChildAdded(jugadoresRef, (s) => mapaJugadores.current.set(s.key ?? '', s.val())),
+      onChildChanged(jugadoresRef, (s) => mapaJugadores.current.set(s.key ?? '', s.val())),
+      onChildRemoved(jugadoresRef, (s) => mapaJugadores.current.delete(s.key ?? '')),
+    ];
     const quitarResultados = onValue(ref(db, `salas/${sala}/resultados`), (s) => setResultados(s.val() ?? {}));
-    const reloj = window.setInterval(() => setAhora(Date.now()), 2000);
+    // Al juego se le envía la lista unas 20 veces por segundo, para que pueda suavizar los movimientos.
+    const enviar = window.setInterval(() => {
+      const otros = [...mapaJugadores.current]
+        .filter(([id, j]) => id !== yo && Date.now() - j.t < EDAD_MAX && j.x >= 0)
+        .map(([id, j]) => ({ id, ...j }));
+      iframeRef.current?.contentWindow?.postMessage({ tipo: 'otros', jugadores: otros }, '*');
+    }, 50);
+    const contar = window.setInterval(() => setJugadores(Object.fromEntries(mapaJugadores.current)), 1000);
     return () => {
-      quitarJugadores();
+      quitarJugadores.forEach((f) => f());
       quitarResultados();
-      window.clearInterval(reloj);
+      window.clearInterval(enviar);
+      window.clearInterval(contar);
       window.clearInterval(latido);
+      mapaJugadores.current.clear();
       remove(miRef).catch(() => {});
       onDisconnect(miRef).cancel().catch(() => {});
     };
   }, [sala, yo, nombre]);
-
-  // Lo que ve el juego: los demás jugadores que siguen conectados.
-  const otros = useMemo(
-    () => Object.entries(jugadores).filter(([id, j]) => id !== yo && ahora - j.t < EDAD_MAX && j.x >= 0).map(([, j]) => j),
-    [jugadores, yo, ahora],
-  );
-  useEffect(() => {
-    iframeRef.current?.contentWindow?.postMessage({ tipo: 'otros', jugadores: otros }, '*');
-  }, [otros]);
 
   // Mensajes del juego: posición (para los demás) y fin de partida (para la clasificación).
   const alRecibir = useCallback(
     (datos: { tipo?: string; x?: number; y?: number; dir?: string; av?: Record<string, unknown>; nombre?: string; puntos?: number; tiempo?: number }) => {
       if (!sala || !datos) return;
       if (datos.tipo === 'pos') {
-        set(ref(db, `salas/${sala}/jugadores/${yo}`), {
+        // Solo se actualizan los campos que cambian: la posición en cada envío; el aspecto, de vez en cuando.
+        update(ref(db, `salas/${sala}/jugadores/${yo}`), {
           nombre: (datos.nombre || nombre).slice(0, 12),
           x: Math.round(datos.x ?? 0),
           y: Math.round(datos.y ?? 0),
           dir: datos.dir ?? 'down',
-          av: datos.av ?? {},
           t: Date.now(),
-        } satisfies Jugador);
+          ...(datos.av ? { av: datos.av } : {}),
+        }).catch(() => {});
       }
       if (datos.tipo === 'fin') {
         set(ref(db, `salas/${sala}/resultados/${yo}`), {
@@ -130,7 +138,7 @@ export default function RespiraSala() {
         .sort((a, b) => b.puntos - a.puntos || a.tiempo - b.tiempo),
     [resultados],
   );
-  const enJuego = Object.values(jugadores).filter((j) => ahora - j.t < EDAD_MAX).length;
+  const enJuego = Object.values(jugadores).filter((j) => Date.now() - j.t < EDAD_MAX).length;
 
   if (!sala) {
     return (
