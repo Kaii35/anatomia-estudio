@@ -100,6 +100,7 @@ export default function Presentacion() {
           s.querySelectorAll<HTMLElement>('model-viewer[data-src]').forEach((mv) => {
             const destino = document.createElement('div');
             destino.setAttribute('style', mv.getAttribute('style') ?? '');
+            destino.style.position = 'relative';
             mv.replaceWith(destino);
             nuevos.push({ id: nuevos.length, lamina: i, url: mv.dataset.src ?? '', destino });
           });

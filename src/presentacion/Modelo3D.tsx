@@ -13,10 +13,13 @@ function Escena({ url }: { url: string }) {
   const grupo = useMemo(() => new Group(), []);
 
   useLayoutEffect(() => {
-    const caja = new Box3().setFromObject(modelo);
+    // Hay que recalcular las transformaciones de todos los nodos antes de medir: si no, la caja ignora la posición real de cada pieza.
+    modelo.position.set(0, 0, 0);
+    modelo.updateMatrixWorld(true);
+    const caja = new Box3().setFromObject(modelo, true);
     const centro = caja.getCenter(new Vector3());
     const tamano = caja.getSize(new Vector3());
-    const escala = 3.2 / Math.max(tamano.x, tamano.y, tamano.z || 1);
+    const escala = 2.3 / Math.max(tamano.x, tamano.y, tamano.z || 1);
     modelo.position.sub(centro);
     grupo.scale.setScalar(escala);
     grupo.add(modelo);
@@ -46,9 +49,17 @@ function Escena({ url }: { url: string }) {
  */
 export default function Modelo3D({ url }: { url: string }) {
   return (
+    <div style={{ position: 'absolute', inset: 0 }}>
     <Canvas
       frameloop="always"
-      dpr={[1, 1.5]}
+      dpr={[1.5, 2]}
+      onCreated={({ gl }) => {
+        // El tamaño visible lo marca el contenedor (100 %); R3F no debe reescribirlo al medir la presentación escalada.
+        gl.domElement.style.width = '100%';
+        gl.domElement.style.height = '100%';
+        const ajustar = gl.setSize.bind(gl);
+        gl.setSize = (ancho: number, alto: number) => ajustar(ancho, alto, false);
+      }}
       camera={{ position: [0, 0, 6], fov: 35 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       style={{ width: '100%', height: '100%', background: 'transparent' }}
@@ -57,5 +68,6 @@ export default function Modelo3D({ url }: { url: string }) {
         <Escena url={url} />
       </Suspense>
     </Canvas>
+    </div>
   );
 }
